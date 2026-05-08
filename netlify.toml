@@ -1,2 +1,5 @@
 [functions]
-  timeout = 26
+  included_files = ["netlify/functions/**"]
+
+[build]
+  publish = "/"
