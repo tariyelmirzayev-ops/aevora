@@ -2083,13 +2083,7 @@ function renderSimResult(r, onBack, onNew){
   const inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
-  // ── DEBUG (remove later)
-  if(S._simDebug){
-    var dbg=h('div',{css:{background:'rgba(0,229,192,.08)',border:'1px solid rgba(0,229,192,.3)',borderRadius:'8px',padding:'10px 14px',marginBottom:'12px'}});
-    var dbgTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(0,229,192,.8)',wordBreak:'break-all'}});
-    dbgTxt.textContent='Debug: '+S._simDebug;
-    dbg.appendChild(dbgTxt);inn.appendChild(dbg);
-  }
+
   // ── 9. Back button top-left + header row
   const topRow=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}});
   topRow.appendChild(mkBackBtn('Back',onBack));
@@ -2689,10 +2683,10 @@ function PL(){
       'HORIZON: '+yr+' years\n'+
       (profSummary?'PERSON: '+profSummary+'\n':'')+
       'Write a rich, grounded story about this alternate path. Use real organizations from the text (ASCO, MoDI, etc). No generic sentences.\n'+
-      'JSON format: {"narrative":"2-3 sentences","chapters":[{"title":"3-5 words","period":"Years 1-2","story":"150+ words specific story","emotion":"word"},{"title":"...","period":"Years 3-4","story":"150+ words","emotion":"word"},{"title":"...","period":"Year '+yr+'","story":"150+ words","emotion":"word"}],"keyMoments":[{"year":2,"event":"specific"},{"year":4,"event":"specific"},{"year":'+yr+',"event":"specific"}],"emotionalArc":[{"year":1,"emotion":"word","intensity":45},{"year":2,"emotion":"word","intensity":65},{"year":3,"emotion":"word","intensity":55},{"year":4,"emotion":"word","intensity":72},{"year":'+yr+',"emotion":"word","intensity":80}],"insights":["trade-off insight","what gained","what revealed"],"resonance":"one sentence","visualScenes":[{"caption":"sentence","prompt":"10 words"},{"caption":"sentence","prompt":"10 words"},{"caption":"sentence","prompt":"10 words"}]}';
+      'JSON format: {"narrative":"2 sentences","chapters":[{"title":"3-5 words","period":"Years 1-2","story":"80-100 words specific grounded story","emotion":"word"},{"title":"...","period":"Years 3-4","story":"80-100 words","emotion":"word"},{"title":"...","period":"Year '+yr+'","story":"80-100 words","emotion":"word"}],"keyMoments":[{"year":2,"event":"specific"},{"year":4,"event":"specific"},{"year":'+yr+',"event":"specific"}],"emotionalArc":[{"year":1,"emotion":"word","intensity":45},{"year":2,"emotion":"word","intensity":65},{"year":3,"emotion":"word","intensity":55},{"year":4,"emotion":"word","intensity":72},{"year":'+yr+',"emotion":"word","intensity":80}],"insights":["trade-off insight","what gained","what revealed"],"resonance":"one sentence","visualScenes":[{"caption":"sentence","prompt":"10 words"},{"caption":"sentence","prompt":"10 words"},{"caption":"sentence","prompt":"10 words"}]}';
 
     try{
-      const raw=await ai([{role:'user',content:userMsg}],sys,2,{tokens:3000});
+      const raw=await ai([{role:'user',content:userMsg}],sys,2,{tokens:1500});
       if(!raw||typeof raw!=='string'){throw new Error('API returned empty: '+(raw===null?'null':typeof raw));}
       if(raw.startsWith('__ERR__:')){throw new Error('API error: '+raw.replace('__ERR__:','')+' | detail: '+S._apiLastErr);}
       var cleaned=raw.replace(/```json|```/g,'').trim();
