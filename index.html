@@ -51,11 +51,11 @@ const C={tl:'#00E5C0',gd:'#F2C94C',mu:'#9B94BC',fa:'rgba(255,255,255,.06)',bo:'r
 const PF="'Playfair Display','Georgia',serif";const PFW='600';
 const CR="'Satoshi','Inter',sans-serif";
 const LOGO='./logo.png';
-const S={scr:'welcome',prof:null,onboarded:false,ongoing:false,user:null,lang:'en',
+const S={scr:'welcome',prof:null,onboarded:false,ongoing:false,user:null,lang:'en',_fromSim:false,_simDebug:'',_apiLastErr:'',
   e1:{msgs:[],cnt:0,done:false},
   e2:{idx:0,ans:{},val:''},
   th:{msgs:[{r:'a',t:"Welcome to your sanctuary. I'm here to hold space for whatever arises within you. What calls to be witnessed today?"}]},
-  pl:{step:'input',d:'',a:'',y:'10',res:null,detail:null}
+  pl:{step:'input',d:'',a:'',y:'10',res:null,detail:null,tab:'simulate',photos:[],ctx:{ageRange:'',domain:'',value:'',who:'',stake:''}}
 };
 
 function h(t,p,...c){
@@ -158,7 +158,7 @@ function mkMic(inp){
   let rec=null,active=false,finalText='';
 
   const btn=h('button',{cls:'av-btn',css:{flexShrink:'0',padding:'12px 14px',fontSize:'16px',borderColor:'rgba(255,255,255,.15)',color:'rgba(255,255,255,.4)',position:'relative'}});
-  btn.textContent='🎤';
+  btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
   btn.title='Press to speak — press again to stop';
 
   function setActive(on){
@@ -223,25 +223,37 @@ function mkMic(inp){
 function getApiKey(){try{return localStorage.getItem('aevora_api_key')||'';}catch{return '';}}
 function saveApiKey(k){try{localStorage.setItem('aevora_api_key',k);}catch{}}
 
-async function ai(msgs,sys,retries=2){
+async function ai(msgs,sys,retries=2,opts){
   const key=getApiKey();
   if(!key){showApiKeyPrompt();return'Please add your API key in Settings → API Key to enable AI features.';}
   for(let attempt=0;attempt<=retries;attempt++){
     try{
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:msgs})});
+      // Use Netlify proxy to avoid CORS/network blocks
+      var useProxy=window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1';
+      var endpoint=useProxy?'/.netlify/functions/ai':'https://api.anthropic.com/v1/messages';
+      var fetchOpts;
+      if(useProxy){
+        fetchOpts={method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({messages:msgs,system:sys,max_tokens:opts&&opts.tokens?opts.tokens:1000,api_key:key})};
+      }else{
+        fetchOpts={method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},
+          body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:opts&&opts.tokens?opts.tokens:1000,system:sys,messages:msgs})};
+      }
+      const r=await fetch(endpoint,fetchOpts);
       const d=await r.json();
       if(d.error){
-        if(d.error.type==='authentication_error'){showApiKeyPrompt('Invalid API key. Please update it in Settings.');return null;}
+        if(d.error.type==='authentication_error'){S._apiLastErr='auth_error';showApiKeyPrompt('Invalid API key. Please update it in Settings.');return '__ERR__:auth';}
         if(d.error.type==='overloaded_error'&&attempt<retries){await new Promise(res=>setTimeout(res,1200*(attempt+1)));continue;}
-        throw new Error(d.error.message);
+        S._apiLastErr='api:'+d.error.type+':'+d.error.message;throw new Error(d.error.message);
       }
       return d.content[0].text;
     }catch(e){
+      S._apiLastErr='attempt '+attempt+': '+e.message;
       if(attempt<retries){await new Promise(res=>setTimeout(res,1200*(attempt+1)));continue;}
-      console.error(e);return null;
+      return '__ERR__:'+e.message;
     }
   }
-  return null;
+  return '__ERR__:exhausted';
 }
 
 function showRetryBanner(container,onRetry){
@@ -1661,28 +1673,28 @@ function Home(){
   function pickFeatured(){
     const hr=new Date().getHours();
     const doy=Math.floor((Date.now()/86400000));
-    const hasProf=!!S.prof;
-    // Morning (5-11): reflection & clarity focus
-    // Afternoon (12-17): action & career focus
-    // Evening (18-23): processing & healing focus
-    // Night (0-4): deep introspection
+    // AI Therapist is always first — the core module
+    const therapistMod=ALL_MODS.find(function(m){return m.id==='therapist';});
+    // Second slot: time-of-day pick
     const timeSlot=hr>=5&&hr<12?'morning':hr>=12&&hr<18?'afternoon':hr>=18&&hr<23?'evening':'night';
     const pools={
-      morning:['therapist','wisdom','regret'],
-      afternoon:['parallellives','career','navigator'],
-      evening:['therapist','innerchild','timecapsule'],
+      morning:['parallellives','future','dreams'],
+      afternoon:['parallellives','blueprint','future'],
+      evening:['innerchild','timecapsule','parallellives'],
       night:['parallellives','dreams','future'],
     };
-    // Always show available modules first, fill with coming-soon if needed
     const pool=pools[timeSlot];
-    const available=ALL_MODS.filter(m=>m.on&&pool.includes(m.id));
-    const fallback=ALL_MODS.filter(m=>m.on&&!pool.includes(m.id));
-    const all3=[...available,...fallback].slice(0,2);
-    // Third slot: rotate by day + ESP status
-    const extras=ALL_MODS.filter(m=>!all3.find(x=>x.id===m.id));
+    const second=ALL_MODS.find(function(m){return m.on&&pool[0]===m.id;})||
+                 ALL_MODS.find(function(m){return m.on&&m.id!=='therapist';});
+    // Third slot: rotate by day, exclude therapist + second
+    const used=[therapistMod&&therapistMod.id, second&&second.id];
+    const extras=ALL_MODS.filter(function(m){return!used.includes(m.id);});
     const third=extras[doy%extras.length];
-    if(third)all3.push(third);
-    return all3.slice(0,3);
+    const result=[];
+    if(therapistMod)result.push(therapistMod);
+    if(second)result.push(second);
+    if(third)result.push(third);
+    return result.slice(0,3);
   }
   const featured=pickFeatured();
 
@@ -1880,7 +1892,7 @@ function Therapist(){
   const w=h('div',{css:{position:'relative',minHeight:'100vh',display:'flex',flexDirection:'column',overflow:'hidden',background:'transparent'}});
   w.appendChild(stars(40));
   const hdr=h('div',{css:{padding:'16px 20px',borderBottom:`1px solid ${C.bo}`,display:'flex',alignItems:'center',gap:'12px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.6)',backdropFilter:'blur(10px)'}});
-  hdr.appendChild(mkBackBtn('Home',()=>go('home')));
+  hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':'Home',function(){if(S._fromSim){S._fromSim=false;go('parallellives');}else{go('home');}}));
   const hi=h('div',{});
   const thIcn=mkModIcon('therapist');thIcn.style.marginBottom='0';thIcn.style.width='32px';thIcn.style.height='32px';thIcn.style.borderRadius='8px';thIcn.style.flexShrink='0';
   const thRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'2px'}});thRow.appendChild(thIcn);const thH2=h('h2',{css:{fontFamily:PF,fontSize:'17px',fontWeight:'600',color:'#F0EEF8'}});thH2.textContent=t('th_title');thRow.appendChild(thH2);hi.appendChild(thRow);
@@ -1900,7 +1912,7 @@ function Therapist(){
     av.innerHTML='';
     av.appendChild(screen);
   }}});
-  voiceBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>Voice Chat</span>';
+  voiceBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>Voice Chat</span>';
   voiceBtn.title='Start ongoing voice conversation';
   hdr.appendChild(voiceBtn);
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}}))));
@@ -2034,6 +2046,44 @@ function mkCollapsible(labelText, labelColor, content, defaultOpen){
   return wrap;
 }
 
+
+
+// ── LISTEN BUTTON — global, robust TTS
+function mkListenBtn(getText){
+  var active=false;
+  var btn=h('button',{cls:'av-btn',css:{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',fontSize:'13px',borderColor:C.tb,color:C.tl,flexShrink:'0'}});
+  function setIdle(){active=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="'+TEAL+'" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Listen</span>';btn.style.color=C.tl;}
+  function setPlaying(){active=true;btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="'+GOLD+'" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>Stop</span>';btn.style.color=GOLD;}
+  setIdle();
+  btn.addEventListener('click',function(){
+    if(!window.speechSynthesis){btn.textContent='Not supported';return;}
+    if(active){window.speechSynthesis.cancel();setIdle();return;}
+    var text=getText();if(!text||!text.trim())return;
+    window.speechSynthesis.cancel();
+    // Small delay so cancel clears properly
+    setTimeout(function(){
+      var utt=new SpeechSynthesisUtterance(text);
+      utt.rate=0.88;utt.pitch=1;utt.volume=1;utt.lang='en-US';
+      // Try to pick a good voice if available
+      var voices=window.speechSynthesis.getVoices();
+      if(voices.length>0){
+        var pref=voices.find(function(v){return v.lang==='en-US'&&v.name.toLowerCase().includes('female');})
+          ||voices.find(function(v){return v.lang==='en-US';})
+          ||voices.find(function(v){return v.lang&&v.lang.startsWith('en');});
+        if(pref)utt.voice=pref;
+      }
+      utt.onstart=setPlaying;
+      utt.onend=setIdle;
+      utt.onerror=setIdle;
+      // Chrome mobile fix: resume first
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utt);
+      setPlaying();
+    },80);
+  });
+  return btn;
+}
+
 function renderSimResult(r, onBack, onNew){
   const w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent'}});
   w.appendChild(stars(40));
@@ -2042,231 +2092,335 @@ function renderSimResult(r, onBack, onNew){
   const inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
-  // ── Header
-  const topRow=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'20px'}});
-  const tl=h('div',{});
-  tl.appendChild(h('p',{css:{color:GOLD,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'3px',fontFamily:CR}},'Parallel Lives · Simulation'));
-  tl.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'700',color:'#F0EEF8'}},'Your Alternate Timeline'));
-  topRow.appendChild(tl);
-  if(onNew)topRow.appendChild(h('button',{cls:'av-btn',css:{padding:'6px 14px',fontSize:'12px'},on:{click:onNew}},'New'));
+  // ── DEBUG (remove later)
+  if(S._simDebug){
+    var dbg=h('div',{css:{background:'rgba(0,229,192,.08)',border:'1px solid rgba(0,229,192,.3)',borderRadius:'8px',padding:'10px 14px',marginBottom:'12px'}});
+    var dbgTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(0,229,192,.8)',wordBreak:'break-all'}});
+    dbgTxt.textContent='Debug: '+S._simDebug;
+    dbg.appendChild(dbgTxt);inn.appendChild(dbg);
+  }
+  // ── 9. Back button top-left + header row
+  const topRow=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}});
+  topRow.appendChild(mkBackBtn('Back',onBack));
+  const headerMeta=h('div',{css:{textAlign:'center',flex:'1'}});
+  headerMeta.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.18em',textTransform:'uppercase',color:GOLD}},'Parallel Lives · Simulation'));
+  topRow.appendChild(headerMeta);
+  if(onNew){
+    var newBtn=h('button',{css:{display:'flex',alignItems:'center',gap:'5px',padding:'5px 12px',borderRadius:'20px',border:'1px solid rgba(242,201,76,.3)',background:'rgba(242,201,76,.06)',color:'rgba(242,201,76,.7)',fontFamily:CR,fontSize:'11px',cursor:'pointer',letterSpacing:'.06em',transition:'all .2s'},on:{click:onNew}});
+    newBtn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New</span>';
+    newBtn.addEventListener('mouseenter',function(){newBtn.style.background='rgba(242,201,76,.12)';newBtn.style.color=GOLD;});
+    newBtn.addEventListener('mouseleave',function(){newBtn.style.background='rgba(242,201,76,.06)';newBtn.style.color='rgba(242,201,76,.7)';});
+    topRow.appendChild(newBtn);
+  }
   inn.appendChild(topRow);
 
-  // Meta
-  if(r.ts)inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'#9B94BC',marginBottom:'16px'}},fmtDate(r.ts)+' · '+r.years+' year horizon'));
-
-  // Decision summary card
+  // ── 1. Decision card — compact, small fonts
   if(r.decision){
-    const ds=h('div',{css:{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'10px',padding:'12px 14px',marginBottom:'20px'}});
-    ds.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'#9B94BC',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'6px'}},'The Decision'));
-    ds.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'#F0EEF8',lineHeight:'1.5',marginBottom:'4px'}},r.decision));
-    ds.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'#9B94BC'}},'→ Alternate: '+r.alternate));
+    const ds=h('div',{css:{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'8px',padding:'10px 14px',marginBottom:'18px',display:'flex',gap:'10px',alignItems:'flex-start'}});
+    const dsIco=h('div',{css:{width:'3px',height:'100%',minHeight:'36px',background:'linear-gradient(180deg,'+GOLD+',rgba(242,201,76,.3))',borderRadius:'2px',flexShrink:'0'}});
+    const dsTxt=h('div',{css:{flex:'1'}});
+    dsTxt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.55)',marginBottom:'3px',lineHeight:'1.4'}},r.decision));
+    dsTxt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:GOLD+'90'}},'↳ '+r.alternate));
+    const dsMeta=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.3)',marginTop:'3px'}});
+    dsMeta.textContent=(r.ts?fmtDate(r.ts)+' · ':'')+r.years+' yr horizon';
+    dsTxt.appendChild(dsMeta);
+    ds.appendChild(dsIco);ds.appendChild(dsTxt);
     inn.appendChild(ds);
   }
 
-  // ── LOADING STATE while generating rich content
-  const loader=h('div',{css:{textAlign:'center',padding:'40px 0'}});
-  loader.appendChild(orb(52,GOLD));
-  const lp=h('p',{cls:'av-p',css:{fontFamily:PF,fontStyle:'italic',fontSize:'15px',color:'#9B94BC',marginTop:'16px'}});
-  lp.textContent='Weaving your full story...';
-  loader.appendChild(lp);
-  inn.appendChild(loader);
+  // ── NARRATIVE — shown immediately from first API call
+  if(r.narrative){
+    const narSec=h('div',{css:{marginBottom:'20px'}});
+    const narHdr=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}});
+    narHdr.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:GOLD}},'Overview'));
+    narSec.appendChild(narHdr);
+    const narCard=h('div',{css:{background:'linear-gradient(145deg,rgba(26,16,48,0.92),rgba(13,11,35,0.97))',borderLeft:'3px solid '+GOLD,borderRadius:'10px',padding:'16px',marginBottom:'0'}});
+    const narTxt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'15px',color:'rgba(255,255,255,.88)',lineHeight:'1.85'}});
+    narTxt.textContent=r.narrative;narCard.appendChild(narTxt);
+    narSec.appendChild(narCard);inn.appendChild(narSec);
+  }
 
-  // Generate enhanced content from existing data
-  const enrichSys=`You are Aevora's narrative engine. Given a Parallel Lives simulation result, expand it into a rich hybrid story format.
-Return ONLY valid JSON (no markdown) with:
-- chapters: array of 3 objects, each with title (string, 3-5 words), period (string e.g. "Years 1-3"), narrative (string, 2-3 sentences of vivid story), emotion (string, one word e.g. "Hopeful")
-- emotionalArc: array of 5 objects with year (number) and emotion (string, one word) and intensity (0-100)
-- visualScenes: array of 2 objects with caption (string, one sentence) and prompt (string, 8-12 word cinematic scene description for image generation, no people names, cinematic style)`;
+  // ── All content is in r directly — no second call needed
+  try{
+    renderHybrid(r);
+  }catch(err){
+    var errBox=h('div',{css:{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.4)',borderRadius:'10px',padding:'16px',marginTop:'16px'}});
+    var errTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'#F87171',lineHeight:'1.6'}});
+    errTxt.textContent='Render error: '+err.message+' — '+JSON.stringify({hasChapters:!!(r&&r.chapters),chapLen:r&&r.chapters?r.chapters.length:0,hasNarr:!!(r&&r.narrative)});
+    errBox.appendChild(errTxt);inn.appendChild(errBox);
+    console.error('renderHybrid error:',err,r);
+  }
 
-  const enrichInput=`Narrative: "${r.narrative}"
-Key moments: ${JSON.stringify(r.keyMoments)}
-Insights: ${JSON.stringify(r.insights)}
-Years: ${r.years}
-Decision context: "${r.decision||''}"`;
+    function renderHybrid(e){
+    // ── 2 & 3. Story Chapters — real, grounded, with listen per chapter
+    const storyLabel=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}});
+    storyLabel.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:GOLD}},'Your Alternate Story'));
+    // Global listen: reads all chapters
+    const allChaptersText=(e.chapters||[]).map(function(c){return c.title+'. '+c.story;}).join(' ');
+    if(allChaptersText)storyLabel.appendChild(mkListenBtn(function(){return allChaptersText;}));
+    inn.appendChild(storyLabel);
 
-  ai([{role:'user',content:enrichInput}], enrichSys).then(function(raw){
-    loader.remove();
-    let enriched={chapters:[],emotionalArc:[],visualScenes:[]};
-    try{enriched=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){}
-    renderHybrid(enriched);
-  }).catch(function(){
-    loader.remove();
-    renderHybrid({chapters:[],emotionalArc:[],visualScenes:[]});
-  });
-
-  function renderHybrid(e){
-    // ── THE NARRATIVE (original)
-    const nLabel=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:GOLD,marginBottom:'10px'}});
-    nLabel.textContent=t('pl_narrative');
-    inn.appendChild(nLabel);
-    const narCard=h('div',{css:{background:'linear-gradient(145deg,rgba(26,16,48,0.92),rgba(13,11,35,0.97))',borderLeft:'3px solid '+GOLD,border:'1px solid rgba(242,201,76,.25)',borderRadius:'10px',padding:'16px',marginBottom:'20px'}});
-    const narTop=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}});
-    narTop.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:GOLD,letterSpacing:'.12em',textTransform:'uppercase'}},'Overview'));
-    narTop.appendChild(listenBtn(function(){
-      return r.narrative+'. '+(e.chapters||[]).map(function(c){return c.narrative;}).join(' ')+'. '+(r.insights||[]).join('. ')+'. '+r.resonance;
-    }));
-    narCard.appendChild(narTop);
-    const narTxt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'15px',color:'rgba(255,255,255,.85)',lineHeight:'1.85'}});
-    narTxt.textContent=r.narrative;
-    narCard.appendChild(narTxt);
-    inn.appendChild(narCard);
-
-    // ── STORY CHAPTERS
     if(e.chapters&&e.chapters.length>0){
-      const chLabel=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:TEAL,marginBottom:'12px'}});
-      chLabel.textContent=t('pl_chapters');
-      inn.appendChild(chLabel);
       e.chapters.forEach(function(ch,i){
-        const card=h('div',{css:{background:'linear-gradient(145deg,rgba(20,12,38,0.95),rgba(13,11,35,0.98))',border:'1px solid rgba(0,229,192,.15)',borderRadius:'10px',padding:'14px',marginBottom:'10px',position:'relative',overflow:'hidden'}});
-        // Chapter number accent
-        const accent=h('div',{css:{position:'absolute',top:0,left:0,width:'3px',height:'100%',background:'linear-gradient(180deg,'+TEAL+','+GOLD+')'}});
+        const card=h('div',{css:{background:'linear-gradient(145deg,rgba(20,12,38,0.95),rgba(13,11,35,0.98))',border:'1px solid rgba(242,201,76,.22)',borderRadius:'14px',padding:'18px 16px 18px',marginBottom:'14px',position:'relative',overflow:'hidden'}});
+        const accent=h('div',{css:{position:'absolute',top:0,left:0,width:'3px',height:'100%',background:'linear-gradient(180deg,'+GOLD+',rgba(242,201,76,.2))'}});
         card.appendChild(accent);
-        const chTop=h('div',{css:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',paddingLeft:'10px'}});
-        const chNum=h('div',{css:{width:'22px',height:'22px',borderRadius:'50%',background:TEAL+'20',border:'1px solid '+TEAL+'50',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',color:TEAL,fontFamily:CR,flexShrink:'0'}});
+        const chHdr=h('div',{css:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px',paddingLeft:'10px'}});
+        const chNum=h('div',{css:{width:'22px',height:'22px',borderRadius:'50%',background:GOLD+'15',border:'1px solid '+GOLD+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'11px',color:GOLD,fontFamily:CR,flexShrink:'0'}});
         chNum.textContent=String(i+1);
-        const chPeriod=h('p',{css:{fontFamily:CR,fontSize:'11px',color:TEAL,letterSpacing:'.1em',textTransform:'uppercase'}});
-        chPeriod.textContent=ch.period||'';
-        const chEmo=h('p',{css:{fontFamily:CR,fontSize:'11px',color:GOLD+'90',marginLeft:'auto',letterSpacing:'.08em'}});
-        chEmo.textContent=ch.emotion||'';
-        chTop.appendChild(chNum);chTop.appendChild(chPeriod);chTop.appendChild(chEmo);
-        const chTitle=h('p',{css:{fontFamily:PF,fontSize:'15px',fontWeight:'600',color:'#F0EEF8',marginBottom:'6px',paddingLeft:'10px'}});
-        chTitle.textContent=ch.title||'';
-        const chTxt=h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.72)',lineHeight:'1.65',paddingLeft:'10px'}});
-        chTxt.textContent=ch.narrative||'';
-        card.appendChild(chTop);card.appendChild(chTitle);card.appendChild(chTxt);
+        const chMeta=h('div',{css:{flex:'1'}});
+        chMeta.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',color:GOLD+'80',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'1px'}},ch.period||''));
+        chMeta.appendChild(h('p',{css:{fontFamily:PF,fontSize:'15px',fontWeight:'600',color:'#F0EEF8'}},ch.title||''));
+        const chEmoRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
+        if(ch.emotion){const chEmo=h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.4)',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'10px',padding:'2px 8px'}});chEmo.textContent=ch.emotion;chEmoRow.appendChild(chEmo);}
+        chEmoRow.appendChild(mkListenBtn(function(s){return function(){return s;};}(ch.story||'')));
+        chHdr.appendChild(chNum);chHdr.appendChild(chMeta);chHdr.appendChild(chEmoRow);
+        card.appendChild(chHdr);
+        // Story text — larger, more readable
+        var storyWrap=h('div',{css:{paddingLeft:'10px',paddingRight:'6px',marginTop:'4px'}});
+        var storyParas=(ch.story||'').split('\n\n');
+        if(storyParas.length<=1)storyParas=(ch.story||'').split('. ').reduce(function(acc,s,i){
+          if(i>0&&i%3===0)acc.push('');
+          if(acc.length===0)acc.push('');
+          acc[acc.length-1]+=(acc[acc.length-1]?'. ':'')+s;
+          return acc;
+        },[]);
+        storyParas.forEach(function(para){
+          if(!para.trim())return;
+          var p=h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.84)',lineHeight:'1.8',marginBottom:'10px'}});
+          p.textContent=para.trim();
+          storyWrap.appendChild(p);
+        });
+        card.appendChild(storyWrap);
         inn.appendChild(card);
       });
     }
 
-    // ── VISUAL TIMELINE — collapsible
-    if(r.keyMoments&&r.keyMoments.length>0){
-      const tmContent=h('div',{});
-      const tmWrap=h('div',{css:{background:'linear-gradient(145deg,rgba(26,16,48,0.92),rgba(13,11,35,0.97))',border:'1px solid rgba(242,201,76,.2)',borderRadius:'10px',padding:'16px',overflowX:'auto',marginBottom:'20px'}});
-      const n=r.keyMoments.length,W=Math.max(280,n*90);
-      let svg='<svg width="'+W+'" height="80" viewBox="0 0 '+W+' 80" style="display:block;min-width:'+W+'px">';
-      const step=W/(n+1),y=45;
-      svg+='<defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="'+TEAL+'" stop-opacity="0.6"/><stop offset="100%" stop-color="'+GOLD+'" stop-opacity="0.6"/></linearGradient></defs>';
-      svg+='<line x1="'+step*0.5+'" y1="'+y+'" x2="'+step*(n+0.5)+'" y2="'+y+'" stroke="url(#lg)" stroke-width="1.5"/>';
-      r.keyMoments.forEach(function(km,i){
-        const x=step*(i+1),above=i%2===0;
-        svg+='<circle cx="'+x+'" cy="'+y+'" r="7" fill="'+GOLD+'" opacity="0.85"/>';
-        svg+='<circle cx="'+x+'" cy="'+y+'" r="2.5" fill="#0D0B23"/>';
-        svg+='<text x="'+x+'" y="'+(above?y-18:y+25)+'" text-anchor="middle" fill="'+GOLD+'" font-size="11" font-family="Crimson Pro,serif" font-weight="600">Year '+km.year+'</text>';
-        const words=km.event.split(' ').slice(0,4).join(' ')+'…';
-        svg+='<text x="'+x+'" y="'+(above?y-30:y+38)+'" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="9" font-family="Crimson Pro,serif">'+words+'</text>';
-      });
-      svg+='</svg>';
-      tmWrap.innerHTML=svg;
-      tmContent.appendChild(tmWrap);
-      // Key moments detail
-      r.keyMoments.forEach(function(km){
+    // ── 5 & 6. Timeline — clean vertical list, no SVG chart, no collapsible
+    const moments=(e.keyMoments&&e.keyMoments.length>0?e.keyMoments:[]);
+    if(moments.length>0){
+      inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:TEAL,marginBottom:'10px',marginTop:'4px'}},'Key Moments'));
+      const tmList=h('div',{css:{marginBottom:'20px'}});
+      moments.forEach(function(km,i){
         const row=h('div',{css:{display:'flex',gap:'12px',marginBottom:'10px',alignItems:'flex-start'}});
-        row.appendChild(h('div',{css:{background:C.tf,border:'1px solid '+C.tb,borderRadius:'5px',padding:'4px 8px',color:TEAL,fontSize:'11px',flexShrink:'0',fontFamily:CR,whiteSpace:'nowrap'}},'Year '+km.year));
-        row.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.72)',lineHeight:'1.55'}},km.event));
-        tmContent.appendChild(row);
+        const yr=h('div',{css:{background:'rgba(0,229,192,.08)',border:'1px solid rgba(0,229,192,.25)',borderRadius:'6px',padding:'4px 10px',color:TEAL,fontSize:'11px',flexShrink:'0',fontFamily:CR,whiteSpace:'nowrap',marginTop:'1px'}});
+        yr.textContent='Year '+km.year;
+        const ev=h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.78)',lineHeight:'1.6',flex:'1'}});
+        ev.textContent=km.event;
+        row.appendChild(yr);row.appendChild(ev);
+        if(i<moments.length-1){
+          const connector=h('div',{css:{position:'absolute',left:'32px',width:'1px',height:'14px',background:'rgba(0,229,192,.2)'}});
+        }
+        tmList.appendChild(row);
       });
-      inn.appendChild(mkCollapsible('Timeline',GOLD,tmContent,false));
+      inn.appendChild(tmList);
     }
 
-    // ── VISUAL MOMENTS — collapsible
+    // ── 7. Photo Visuals — generate on demand
     if(e.visualScenes&&e.visualScenes.length>0){
-      const viContent=h('div',{});
-      const viGrid=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'4px'}});
-      e.visualScenes.forEach(function(scene,i){
-        const card=h('div',{css:{background:'rgba(20,12,38,0.95)',border:'1px solid rgba(0,229,192,.15)',borderRadius:'12px',overflow:'hidden'}});
-        const imgWrap=h('div',{css:{width:'100%',paddingTop:'75%',position:'relative',background:'rgba(13,11,35,0.9)',overflow:'hidden'}});
-        // Loading shimmer
-        const shimmer=h('div',{css:{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'8px'}});
-        const shimOrb=h('div',{css:{width:'32px',height:'32px'}});shimOrb.innerHTML='<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" stroke="'+TEAL+'" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"><animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur="3s" repeatCount="indefinite"/></circle><circle cx="16" cy="16" r="4" fill="'+TEAL+'" opacity="0.4"><animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/></circle></svg>';
-        shimmer.appendChild(shimOrb);
-        const shimTxt=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(0,229,192,.5)',letterSpacing:'.1em'}});shimTxt.textContent='Generating...';
-        shimmer.appendChild(shimTxt);
-        imgWrap.appendChild(shimmer);
-        // Generate image via Pollinations.ai
-        const stylePrefix='cinematic dark atmospheric mystical cosmic dreamlike moody 8k ';
-        const fullPrompt=encodeURIComponent(stylePrefix+(scene.prompt||'mystical alternate life journey'));
-        const imgSrc='https://image.pollinations.ai/prompt/'+fullPrompt+'?width=400&height=300&seed='+Date.now()+'&nologo=true&enhance=true';
-        const img=new Image();
-        img.onload=function(){shimmer.remove();img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';imgWrap.appendChild(img);};
-        img.onerror=function(){shimTxt.textContent='Visual unavailable';};
-        img.src=imgSrc;
-        card.appendChild(imgWrap);
-        const cap=h('p',{css:{fontFamily:CR,fontStyle:'italic',fontSize:'12px',color:'rgba(255,255,255,.6)',padding:'8px 10px',lineHeight:'1.4'}});
-        cap.textContent=scene.caption||'';
-        card.appendChild(cap);
-        viGrid.appendChild(card);
+      const visSection=h('div',{css:{marginBottom:'20px',background:'linear-gradient(145deg,rgba(20,12,38,0.95),rgba(13,11,35,0.98))',border:'1px solid rgba(0,229,192,.2)',borderRadius:'14px',padding:'14px 14px 12px'}});
+      const visHdr=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}});
+      visHdr.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:TEAL}},'Visual Moments'));
+      const genBtn=h('button',{css:{display:'flex',alignItems:'center',gap:'6px',padding:'6px 14px',borderRadius:'20px',border:'1px solid rgba(0,229,192,.35)',background:'rgba(0,229,192,.06)',color:TEAL,fontFamily:CR,fontSize:'12px',cursor:'pointer',transition:'all .2s'}});
+      genBtn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="'+TEAL+'" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Generate Photos</span>';
+      const viGrid=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginTop:'4px'}});
+      let generated=false;
+      genBtn.addEventListener('click',function(){
+        if(generated)return;
+        generated=true;
+        genBtn.style.opacity='0.5';genBtn.style.pointerEvents='none';
+        genBtn.querySelector('span').textContent='Generating...';
+        visSection.appendChild(viGrid);
+        // Sequential loading with delay to avoid Pollinations rate limiting
+        var stylePrefix='cinematic atmospheric moody dramatic personal photography realistic ';
+        function loadScene(index){
+          if(index>=e.visualScenes.length)return;
+          var scene=e.visualScenes[index];
+          var card=h('div',{css:{background:'rgba(20,12,38,.95)',border:'1px solid rgba(0,229,192,.12)',borderRadius:'12px',overflow:'hidden'}});
+          var imgWrap=h('div',{css:{width:'100%',paddingTop:'100%',position:'relative',background:'rgba(13,11,35,.9)'}});
+          var shimDiv=h('div',{css:{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'6px'}});
+          shimDiv.appendChild(orb(28,TEAL));
+          var shimTxt=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(0,229,192,.5)'}});
+          shimTxt.textContent='Generating '+(index+1)+'/'+e.visualScenes.length+'...';
+          shimDiv.appendChild(shimTxt);imgWrap.appendChild(shimDiv);
+          var prompt=encodeURIComponent(stylePrefix+(scene.prompt||'person at crossroads alternate life cinematic'));
+          var seed=Date.now()+index*7919;
+          var src='https://image.pollinations.ai/prompt/'+prompt+'?width=512&height=512&seed='+seed+'&nologo=true&enhance=true&model=flux';
+          var img=new Image();
+          img.onload=function(){
+            shimDiv.remove();
+            img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+            imgWrap.appendChild(img);
+            // Load next image after this one succeeds
+            setTimeout(function(){loadScene(index+1);},600);
+          };
+          img.onerror=function(){
+            shimTxt.textContent='Visual unavailable';
+            setTimeout(function(){loadScene(index+1);},600);
+          };
+          card.appendChild(imgWrap);
+          var cap=h('p',{css:{fontFamily:CR,fontStyle:'italic',fontSize:'11px',color:'rgba(255,255,255,.55)',padding:'8px 10px',lineHeight:'1.4'}});
+          cap.textContent=scene.caption||'';card.appendChild(cap);
+          viGrid.appendChild(card);
+          // Start loading with staggered delay
+          setTimeout(function(){img.src=src;},index*1200);
+        }
+        loadScene(0);
+        setTimeout(function(){genBtn.querySelector('span').textContent='Generated';},500);
       });
-      viContent.appendChild(viGrid);
-      inn.appendChild(mkCollapsible('Visual Moments',TEAL,viContent,false));
+      visHdr.appendChild(genBtn);
+      visSection.appendChild(visHdr);
+      inn.appendChild(visSection);
     }
 
-    // ── EMOTIONAL ARC — collapsible
+    // ── Emotional Arc (compact, keep)
     if(e.emotionalArc&&e.emotionalArc.length>0){
-      const eaContent=h('div',{});
-      const eaCard=h('div',{css:{background:'linear-gradient(145deg,rgba(20,12,38,0.95),rgba(13,11,35,0.98))',border:'1px solid rgba(255,255,255,.07)',borderRadius:'10px',padding:'14px',marginBottom:'20px'}});
-      const eaTrack=h('div',{css:{position:'relative',height:'6px',borderRadius:'6px',background:'rgba(255,255,255,.08)',marginBottom:'12px',overflow:'visible'}});
-      const grad='linear-gradient(90deg,'+TEAL+',#A78BFA,'+GOLD+')';
-      eaTrack.appendChild(h('div',{css:{position:'absolute',inset:0,borderRadius:'6px',background:grad}}));
-      const eaLabels=h('div',{css:{display:'flex',justifyContent:'space-between'}});
+      const eaCard=h('div',{css:{background:'rgba(20,12,38,.8)',border:'1px solid rgba(255,255,255,.06)',borderRadius:'10px',padding:'14px',marginBottom:'20px'}});
+      eaCard.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.35)',marginBottom:'10px'}},'Emotional Arc'));
+      const eaTrack=h('div',{css:{position:'relative',height:'4px',borderRadius:'4px',background:'rgba(255,255,255,.07)',marginBottom:'10px'}});
+      eaTrack.appendChild(h('div',{css:{position:'absolute',inset:0,borderRadius:'4px',background:'linear-gradient(90deg,'+TEAL+',#A78BFA,'+GOLD+')'}}));
+      eaCard.appendChild(eaTrack);
+      const eaRow=h('div',{css:{display:'flex',justifyContent:'space-between'}});
       e.emotionalArc.forEach(function(pt){
         const lbl=h('div',{css:{textAlign:'center'}});
-        lbl.appendChild(h('p',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(255,255,255,.45)',marginBottom:'2px'}},'Yr '+pt.year));
-        lbl.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.7)'}},(pt.emotion||'').substring(0,8)));
-        eaLabels.appendChild(lbl);
+        lbl.appendChild(h('p',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(255,255,255,.35)',marginBottom:'2px'}},'Yr '+pt.year));
+        lbl.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.65)'}},(pt.emotion||'').substring(0,8)));
+        eaRow.appendChild(lbl);
       });
-      eaCard.appendChild(eaTrack);eaCard.appendChild(eaLabels);
-      eaContent.appendChild(eaCard);
-      inn.appendChild(mkCollapsible('Emotional Arc','#A78BFA',eaContent,false));
+      eaCard.appendChild(eaRow);
+      inn.appendChild(eaCard);
     }
 
-    // ── INSIGHTS
-    const insCard=h('div',{css:{background:'linear-gradient(145deg,rgba(26,16,48,0.92),rgba(13,11,35,0.97))',border:'1px solid '+C.tb,borderRadius:'10px',padding:'16px',marginBottom:'16px'}});
-    insCard.appendChild(h('p',{css:{color:TEAL,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px',fontFamily:CR}},t('pl_insights')));
-    (r.insights||[]).forEach(function(ins){
-      const p=h('p',{css:{fontFamily:CR,fontSize:'15px',color:'rgba(255,255,255,.78)',marginBottom:'8px',lineHeight:'1.6'}});
-      p.textContent='· '+ins;insCard.appendChild(p);
+    // ── 8. Insights — sharp and specific
+    const insCard=h('div',{css:{background:'linear-gradient(145deg,rgba(26,16,48,0.92),rgba(13,11,35,0.97))',border:'1px solid rgba(0,229,192,.2)',borderRadius:'10px',padding:'16px',marginBottom:'16px'}});
+    insCard.appendChild(h('p',{css:{color:TEAL,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px',fontFamily:CR}},'Insights'));
+    (e.insights||r.insights||[]).forEach(function(ins){
+      const row=h('div',{css:{display:'flex',gap:'10px',marginBottom:'10px',alignItems:'flex-start'}});
+      const dot=h('div',{css:{width:'5px',height:'5px',borderRadius:'50%',background:TEAL,marginTop:'7px',flexShrink:'0'}});
+      const txt=h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.82)',lineHeight:'1.65',flex:'1'}});
+      txt.textContent=ins;row.appendChild(dot);row.appendChild(txt);insCard.appendChild(row);
     });
-    if(r.resonance){const rp=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'14px',color:GOLD,marginTop:'12px',paddingTop:'12px',borderTop:'1px solid '+C.bo}});rp.textContent='"'+r.resonance+'"';insCard.appendChild(rp);}
+    if(e.resonance||r.resonance){
+      const rp=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'14px',color:GOLD,marginTop:'12px',paddingTop:'12px',borderTop:'1px solid rgba(255,255,255,.06)'}});
+      rp.textContent='\u201c'+(e.resonance||r.resonance)+'\u201d';insCard.appendChild(rp);
+    }
     inn.appendChild(insCard);
 
-    // ── ACTION BUTTONS
+    // ── Action buttons
     const actRow=h('div',{css:{display:'flex',gap:'10px',marginBottom:'16px'}});
     actRow.appendChild(mkBackBtn('Back',onBack));
     if(onNew)actRow.appendChild(h('button',{cls:'av-btn av-gold',css:{flex:'1',padding:'12px'},on:{click:onNew}},t('pl_another')));
     inn.appendChild(actRow);
 
-    // AI Therapist discussion button
-    const thRow=h('div',{css:{background:'linear-gradient(135deg,rgba(0,229,192,.08),rgba(26,16,48,.95))',border:'1px solid rgba(0,229,192,.25)',borderRadius:'12px',padding:'14px 16px',display:'flex',alignItems:'center',gap:'14px',cursor:'pointer',marginBottom:'20px'},on:{click:function(){go('therapist');}}});
+    // ── 11. Therapist — pre-loaded with simulation context & specific question
+    const thRow=h('div',{css:{background:'linear-gradient(135deg,rgba(0,229,192,.08),rgba(26,16,48,.95))',border:'1px solid rgba(0,229,192,.25)',borderRadius:'12px',padding:'14px 16px',display:'flex',alignItems:'center',gap:'14px',cursor:'pointer',marginBottom:'20px'},on:{click:function(){
+      var opening='I\u2019ve been sitting with your simulation. You imagined what would have happened if '+r.alternate+(r.years?' \u2014 over '+r.years+' years':'')+'.';
+      var question=' As you read through that alternate life, what emotion comes up most strongly right now?';
+      S.th.msgs=[{r:'a',t:opening+question}];
+      S._fromSim=true;
+      go('therapist');
+    }}});
     const thIco=h('div',{css:{width:'36px',height:'36px',borderRadius:'50%',background:C.tf,border:'1px solid '+C.tb,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'16px',color:TEAL}});
-    thIco.textContent='◎';
-    const thTxt=h('div',{});
-    thTxt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',fontWeight:'600',color:'#F0EEF8',marginBottom:'2px'}},t('pl_therapist')));
-    thTxt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'#9B94BC'}},t('pl_therapist_sub')));
+    thIco.textContent='\u25ce';
+    const thTxt=h('div',{css:{flex:'1'}});
+    thTxt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',fontWeight:'600',color:'#F0EEF8',marginBottom:'2px'}},'Process with AI Therapist'));
+    thTxt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'#9B94BC'}},'Explore what this simulation stirred in you'));
     thRow.appendChild(thIco);thRow.appendChild(thTxt);
-    thRow.appendChild(h('span',{css:{color:'rgba(0,229,192,.5)',fontSize:'18px',marginLeft:'auto'}},'→'));
+    thRow.appendChild(h('span',{css:{color:'rgba(0,229,192,.5)',fontSize:'18px',marginLeft:'auto'}},'\u2192'));
     inn.appendChild(thRow);
-
-    // ── WISDOM INSIGHT — oracle reflection on this simulation
-    var wisdomCard=h('div',{css:{background:'linear-gradient(145deg,rgba(26,12,38,.95),rgba(13,11,35,.98))',border:'1px solid rgba(252,211,77,.2)',borderRadius:'14px',padding:'16px 18px',marginBottom:'20px',position:'relative',overflow:'hidden'}});
-    var wcGlow=h('div',{css:{position:'absolute',inset:0,background:'radial-gradient(ellipse at bottom left,rgba(252,211,77,.05),transparent 65%)',pointerEvents:'none'}});wisdomCard.appendChild(wcGlow);
-    var wcHdr=h('div',{css:{display:'flex',alignItems:'center',gap:'7px',marginBottom:'12px'}});
-    var wcIco=h('div',{css:{width:'20px',height:'20px',borderRadius:'5px',background:'rgba(252,211,77,.1)',border:'1px solid rgba(252,211,77,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px'}});wcIco.textContent='\u2736';
-    var wcLbl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.2em',textTransform:'uppercase',color:'rgba(252,211,77,.65)',fontWeight:'600'}});wcLbl.textContent='WISDOM ORACLE';
-    wcHdr.appendChild(wcIco);wcHdr.appendChild(wcLbl);wisdomCard.appendChild(wcHdr);
-    var wcTxt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'15px',color:'rgba(255,255,255,.75)',lineHeight:'1.7',marginBottom:'12px'}});
-    wcTxt.textContent='The oracle is reflecting on your alternate path...';wisdomCard.appendChild(wcTxt);
-    inn.appendChild(wisdomCard);
-    // Fetch wisdom async
-    (async function(){
-      var pc=S.prof?JSON.stringify(S.prof):'{}';
-      var sys='You are Aevoras Wisdom Oracle. The user just simulated an alternate life path. Narrative: "'+r.narrative+'". Their ESP: '+pc+'. Return ONE sentence of personalised, poetic wisdom that reflects on what this simulation reveals about their values or deepest desires. No intro, just the wisdom sentence.';
-      var rep=await ai([{role:'user',content:'Reflect on this simulation.'}],sys);
-      if(rep){wcTxt.textContent='\u201c'+rep+'\u201d';}
-    })();
+    // 10. No Wisdom Oracle here
   }
-
   return w;
 }
+
+
+
+// ── PHOTO CROP MODAL
+function showPhotoCropModal(file, onCropped){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      closeModal();
+      const backdrop=h('div',{css:{position:'fixed',inset:0,zIndex:'3000',background:'rgba(0,0,0,.96)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px',overflowY:'auto'}});
+      document.getElementById('av').appendChild(backdrop);
+      activeModal=backdrop;
+
+      const maxW=Math.min(360,window.innerWidth-40);
+      const ratio=img.height/img.width;
+      const canvasW=maxW;
+      const canvasH=Math.min(canvasW*ratio,380);
+      const scaleX=img.width/canvasW;
+      const scaleY=img.height/canvasH;
+
+      const canvas=document.createElement('canvas');
+      canvas.width=canvasW;canvas.height=canvasH;
+      canvas.style.cssText='display:block;border-radius:10px;cursor:crosshair;touch-action:none;max-width:100%;';
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,canvasW,canvasH);
+
+      var crop={x:0,y:0,w:canvasW,h:canvasH};
+      var dragging=false,sx=0,sy=0;
+
+      function draw(){
+        ctx.clearRect(0,0,canvasW,canvasH);
+        ctx.drawImage(img,0,0,canvasW,canvasH);
+        ctx.fillStyle='rgba(0,0,0,.55)';
+        ctx.fillRect(0,0,canvasW,canvasH);
+        if(crop.w>4&&crop.h>4){
+          ctx.clearRect(crop.x,crop.y,crop.w,crop.h);
+          ctx.drawImage(img,crop.x*scaleX,crop.y*scaleY,crop.w*scaleX,crop.h*scaleY,crop.x,crop.y,crop.w,crop.h);
+          ctx.strokeStyle='#00E5C0';ctx.lineWidth=2;
+          ctx.strokeRect(crop.x,crop.y,crop.w,crop.h);
+          // Corner handles
+          var hs=8;
+          [[crop.x,crop.y],[crop.x+crop.w-hs,crop.y],[crop.x,crop.y+crop.h-hs],[crop.x+crop.w-hs,crop.y+crop.h-hs]].forEach(function(pt){
+            ctx.fillStyle='#00E5C0';ctx.fillRect(pt[0],pt[1],hs,hs);
+          });
+        }
+      }
+      draw();
+
+      function getPos(e){
+        var r=canvas.getBoundingClientRect();
+        var cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+        var cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+        return{x:Math.max(0,Math.min(cx,canvasW)),y:Math.max(0,Math.min(cy,canvasH))};
+      }
+      canvas.addEventListener('mousedown',function(e){var p=getPos(e);sx=p.x;sy=p.y;dragging=true;});
+      canvas.addEventListener('mousemove',function(e){if(!dragging)return;var p=getPos(e);crop={x:Math.min(sx,p.x),y:Math.min(sy,p.y),w:Math.abs(p.x-sx),h:Math.abs(p.y-sy)};draw();});
+      canvas.addEventListener('mouseup',function(){dragging=false;});
+      canvas.addEventListener('touchstart',function(e){e.preventDefault();var p=getPos(e);sx=p.x;sy=p.y;dragging=true;},{passive:false});
+      canvas.addEventListener('touchmove',function(e){e.preventDefault();if(!dragging)return;var p=getPos(e);crop={x:Math.min(sx,p.x),y:Math.min(sy,p.y),w:Math.abs(p.x-sx),h:Math.abs(p.y-sy)};draw();},{passive:false});
+      canvas.addEventListener('touchend',function(){dragging=false;});
+
+      var hdr=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',maxWidth:canvasW+'px',marginBottom:'12px'}});
+      var htxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)'}});htxt.textContent='Drag to select your face or full body';
+      var hx=h('button',{css:{background:'none',border:'none',color:'rgba(255,255,255,.4)',fontSize:'22px',cursor:'pointer',lineHeight:'1'},on:{click:closeModal}});hx.textContent='×';
+      hdr.appendChild(htxt);hdr.appendChild(hx);
+      backdrop.appendChild(hdr);
+      backdrop.appendChild(canvas);
+
+      var btns=h('div',{css:{display:'flex',gap:'10px',marginTop:'14px',width:'100%',maxWidth:canvasW+'px'}});
+      var cancelB=h('button',{cls:'av-btn',css:{flex:'1',padding:'11px'},on:{click:closeModal}});cancelB.textContent='Cancel';
+      var useB=h('button',{cls:'av-btn av-solid',css:{flex:'1',padding:'11px'},on:{click:function(){
+        var out=document.createElement('canvas');
+        var size=400;out.width=size;out.height=size;
+        var oc=out.getContext('2d');
+        var cw=crop.w>4?crop.w:canvasW;
+        var ch=crop.h>4?crop.h:canvasH;
+        oc.drawImage(img,crop.x*scaleX,crop.y*scaleY,cw*scaleX,ch*scaleY,0,0,size,size);
+        closeModal();
+        onCropped(out.toDataURL('image/jpeg',0.82));
+      }}});useB.textContent='Use this photo';
+      btns.appendChild(cancelB);btns.appendChild(useB);
+      backdrop.appendChild(btns);
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 
 function PL(){
   if(!S.pl.tab)S.pl.tab='simulate';
@@ -2283,7 +2437,7 @@ function PL(){
     inn.appendChild(p);w.appendChild(inn);return w;
   }
   if(S.pl.step==='result'&&S.pl.res){
-    return renderSimResult(S.pl.res,function(){go('home');},function(){S.pl.step='input';S.pl.res=null;go('parallellives');});
+    return renderSimResult(S.pl.res,function(){S.pl.step='input';go('home');},function(){S.pl.step='input';S.pl.res=null;go('parallellives');});
   }
   if(S.pl.step==='detail'&&S.pl.detail){
     return renderSimResult(S.pl.detail,function(){S.pl.step='input';S.pl.detail=null;go('parallellives');},null);
@@ -2313,6 +2467,18 @@ function PL(){
     plTabContents[0].style.display=idx===0?'block':'none';
     plTabContents[1].style.display=idx===1?'block':'none';
   });
+  // ⓘ icon aligned to tab description
+  const plDescRow=plTabBar.querySelector('div:last-child');
+  if(plDescRow){
+    plDescRow.style.display='flex';plDescRow.style.alignItems='flex-start';plDescRow.style.gap='8px';
+    const plInfoBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(255,255,255,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'rgba(255,255,255,.4)',cursor:'pointer',flexShrink:'0',marginTop:'1px',background:'rgba(0,0,0,.2)'}});
+    plInfoBtn.textContent='i';
+    plInfoBtn.addEventListener('click',function(){
+      var mod=ALL_MODS.find(function(m){return m.id==='parallellives';});
+      if(mod)showModuleInfo(mod);
+    });
+    plDescRow.appendChild(plInfoBtn);
+  }
   inn.appendChild(plTabBar);
   plTabContents[0].style.display=plActiveTab===0?'block':'none';
   plTabContents[1].style.display=plActiveTab===1?'block':'none';
@@ -2322,11 +2488,13 @@ function PL(){
   const simulateInn=plTabContents[0];
 
   const pb=espBanner();if(pb)simulateInn.appendChild(pb);
-  const ow=h('div',{css:{textAlign:'center',marginBottom:'20px'}});ow.appendChild(orb(48,C.gd));simulateInn.appendChild(ow);
+  const ow=h('div',{css:{textAlign:'center',marginBottom:'16px'}});ow.appendChild(orb(44,C.gd));simulateInn.appendChild(ow);
   const sb=h('button',{cls:'av-btn av-solid',css:{width:'100%',padding:'14px',fontSize:'16px',marginTop:'20px'}},t('pl_simulate'));
-  function mkField(label,col,key,ph,target){
+
+  // ── FIELD BUILDER with guidance hints + example chips
+  function mkField(label,col,key,ph,examples,target){
     if(!target)target=simulateInn;
-    const d=h('div',{css:{marginBottom:'16px'}});
+    const d=h('div',{css:{marginBottom:'18px'}});
     d.appendChild(h('label',{css:{display:'block',color:col,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'8px',fontFamily:CR}},label));
     const wrap=h('div',{css:{position:'relative'}});
     const ta=document.createElement('textarea');ta.className='av-in';ta.placeholder=ph;ta.rows=3;ta.style.resize='none';ta.style.lineHeight='1.6';ta.style.display='block';ta.style.paddingRight='48px';
@@ -2334,12 +2502,46 @@ function PL(){
     ta.addEventListener('input',function(e){S.pl[key]=e.target.value;sb.disabled=!S.pl.d.trim()||!S.pl.a.trim();});
     wrap.appendChild(ta);
     const mic=mkMic(ta);
-    if(mic){mic.style.position='absolute';mic.style.right='6px';mic.style.top='6px';mic.style.padding='6px 8px';mic.style.fontSize='14px';wrap.appendChild(mic);}
-    d.appendChild(wrap);target.appendChild(d);
+    if(mic){mic.style.position='absolute';mic.style.right='6px';mic.style.top='6px';mic.style.padding='6px 8px';wrap.appendChild(mic);}
+    d.appendChild(wrap);
+    // Example chips row
+    const exRow=h('div',{css:{marginTop:'8px'}});
+    const exToggle=h('button',{css:{background:'none',border:'none',color:'rgba(255,255,255,.3)',fontFamily:CR,fontSize:'11px',cursor:'pointer',letterSpacing:'.04em',padding:'0',display:'flex',alignItems:'center',gap:'4px'}});
+    exToggle.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg><span>See examples</span>';
+    const exChips=h('div',{css:{display:'none',flexWrap:'wrap',gap:'6px',marginTop:'8px'}});
+    examples.forEach(function(ex){
+      const chip=h('button',{css:{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px',padding:'5px 12px',fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.55)',cursor:'pointer',textAlign:'left',transition:'all .2s'},on:{click:function(){ta.value=ex;S.pl[key]=ex;sb.disabled=!S.pl.d.trim()||!S.pl.a.trim();exChips.style.display='none';exToggle.querySelector('span').textContent='See examples';}}});
+      chip.addEventListener('mouseenter',function(){chip.style.borderColor=col;chip.style.color=col;});
+      chip.addEventListener('mouseleave',function(){chip.style.borderColor='rgba(255,255,255,.1)';chip.style.color='rgba(255,255,255,.55)';});
+      chip.textContent=ex;exChips.appendChild(chip);
+    });
+    let exOpen=false;
+    exToggle.addEventListener('click',function(){exOpen=!exOpen;exChips.style.display=exOpen?'flex':'none';exToggle.querySelector('span').textContent=exOpen?'Hide examples':'See examples';});
+    exRow.appendChild(exToggle);exRow.appendChild(exChips);
+    d.appendChild(exRow);
+    target.appendChild(d);
   }
-  mkField(t('pl_decision'),C.gd,'d',"Describe the decision you made.",simulateInn);
-  mkField(t('pl_alternate'),C.tl,'a',"What would you have done differently?",simulateInn);
-  const yd=h('div',{css:{marginBottom:'0'}});
+
+  const decisionExamples=[
+    'Stayed at my safe corporate job instead of starting my own company',
+    'Chose not to move abroad for the opportunity that was offered',
+    'Ended my long-term relationship when I had doubts',
+    'Did not pursue the degree I always wanted',
+    'Took the conservative financial path instead of investing in my idea',
+  ];
+  const alternateExamples=[
+    'What if I quit my job and launched the startup I\'d been planning?',
+    'What if I accepted the offer and relocated to build a new life abroad?',
+    'What if I stayed and committed fully to making the relationship work?',
+    'What if I applied for the program and dedicated myself to that path?',
+    'What if I put my savings into the venture and truly backed myself?',
+  ];
+
+  mkField(t('pl_decision'),C.gd,'d','E.g. "I stayed at my corporate job instead of starting my company..."',decisionExamples,simulateInn);
+  mkField(t('pl_alternate'),C.tl,'a','E.g. "What if I had quit and launched the startup I always planned?"',alternateExamples,simulateInn);
+
+  // ── TIME HORIZON
+  const yd=h('div',{css:{marginBottom:'20px'}});
   yd.appendChild(h('label',{css:{display:'block',color:C.mu,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',marginBottom:'10px',fontFamily:CR}},t('pl_horizon')));
   const yr=h('div',{css:{display:'flex',gap:'8px'}});
   ['5','10','20','30'].forEach(function(y){
@@ -2347,28 +2549,180 @@ function PL(){
     yr.appendChild(b);
   });
   yd.appendChild(yr);simulateInn.appendChild(yd);
+
+  // ── PHOTO UPLOAD SECTION
+  var plPhotos=S.pl.photos||[];
+  const photoSection=h('div',{css:{marginBottom:'20px'}});
+  const photoLabel=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'8px'}});
+  const photoLabelTxt=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.4)'}});
+  photoLabelTxt.textContent='Your Photos (optional — for personalised visuals)';
+  const photoBadge=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.25)'}});
+  photoBadge.textContent='Up to 3';
+  photoLabel.appendChild(photoLabelTxt);photoLabel.appendChild(photoBadge);
+  photoSection.appendChild(photoLabel);
+  const photoHint=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.3)',marginBottom:'10px',lineHeight:'1.5'}});
+  photoHint.textContent='Add photos of yourself so the AI can place you accurately in simulated visual moments.';
+  photoSection.appendChild(photoHint);
+  const photoRow=h('div',{css:{display:'flex',gap:'8px',flexWrap:'wrap'}});
+  photoSection.appendChild(photoRow);
+  function renderPhotoRow(){
+    photoRow.innerHTML='';
+    plPhotos.forEach(function(photo,i){
+      const thumb=h('div',{css:{position:'relative',width:'72px',height:'72px',borderRadius:'10px',overflow:'hidden',border:'1px solid rgba(0,229,192,.3)',flexShrink:'0'}});
+      const img=document.createElement('img');img.src=photo;img.style.cssText='width:100%;height:100%;object-fit:cover;';
+      const del=h('div',{css:{position:'absolute',top:'3px',right:'3px',width:'18px',height:'18px',borderRadius:'50%',background:'rgba(0,0,0,.7)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:'11px',color:'rgba(255,255,255,.8)'},on:{click:function(){plPhotos.splice(i,1);S.pl.photos=plPhotos;renderPhotoRow();}}});
+      del.textContent='×';
+      thumb.appendChild(img);thumb.appendChild(del);photoRow.appendChild(thumb);
+    });
+    if(plPhotos.length<3){
+      const addBtn=h('div',{css:{width:'72px',height:'72px',borderRadius:'10px',border:'1px dashed rgba(255,255,255,.2)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'4px',cursor:'pointer',transition:'all .2s',flexShrink:'0'},on:{click:function(){fileInp.click();}}});
+      addBtn.addEventListener('mouseenter',function(){addBtn.style.borderColor='rgba(0,229,192,.4)';});
+      addBtn.addEventListener('mouseleave',function(){addBtn.style.borderColor='rgba(255,255,255,.2)';});
+      const addIco=h('div',{css:{fontSize:'20px',color:'rgba(255,255,255,.3)'}});addIco.textContent='+';
+      const addTxt=h('p',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(255,255,255,.3)',letterSpacing:'.06em'}});addTxt.textContent='ADD';
+      addBtn.appendChild(addIco);addBtn.appendChild(addTxt);photoRow.appendChild(addBtn);
+    }
+  }
+  const fileInp=document.createElement('input');fileInp.type='file';fileInp.accept='image/*';fileInp.style.display='none';
+  fileInp.addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file)return;
+    fileInp.value='';
+    showPhotoCropModal(file,function(cropped){plPhotos.push(cropped);S.pl.photos=plPhotos;renderPhotoRow();});
+  });
+  photoSection.appendChild(fileInp);
+  renderPhotoRow();
+  simulateInn.appendChild(photoSection);
+
+  // ── QUICK CONTEXT (shown when no ESP profile — personalisation for new users)
+  if(!S.prof){
+    const qcSection=h('div',{css:{background:'rgba(242,201,76,.05)',border:'1px solid rgba(242,201,76,.18)',borderRadius:'12px',padding:'16px',marginBottom:'20px'}});
+    const qcHdr=h('div',{css:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}});
+    const qcIco=h('span',{css:{fontSize:'14px'}});qcIco.textContent='\u2736';
+    const qcTitle=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(242,201,76,.7)'}});qcTitle.textContent='Quick Context';
+    qcHdr.appendChild(qcIco);qcHdr.appendChild(qcTitle);
+    const qcSub=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',marginBottom:'16px',lineHeight:'1.55',marginTop:'4px'}});
+    qcSub.textContent='The more you share, the more the simulation will feel like YOUR life. All fields optional.';
+    qcSection.appendChild(qcHdr);qcSection.appendChild(qcSub);
+
+    // ── Age range chips
+    const qcAgeLabel=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.4)',marginBottom:'6px'}});qcAgeLabel.textContent='Your age range';
+    qcSection.appendChild(qcAgeLabel);
+    const ageRow=h('div',{css:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'14px'}});
+    ['18–25','26–35','36–45','46–55','55+'].forEach(function(a){
+      const b=h('button',{css:{padding:'5px 12px',borderRadius:'20px',border:'1px solid '+(S.pl.ctx.ageRange===a?'rgba(242,201,76,.6)':'rgba(255,255,255,.1)'),background:S.pl.ctx.ageRange===a?'rgba(242,201,76,.12)':'transparent',color:S.pl.ctx.ageRange===a?'#F2C94C':'rgba(255,255,255,.45)',fontFamily:CR,fontSize:'12px',cursor:'pointer',transition:'all .2s'},on:{click:function(){S.pl.ctx.ageRange=S.pl.ctx.ageRange===a?'':a;go('parallellives');}}},a);
+      ageRow.appendChild(b);
+    });
+    qcSection.appendChild(ageRow);
+
+    // ── Domain chips
+    const qcDomLabel=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.4)',marginBottom:'6px'}});qcDomLabel.textContent='This decision primarily affects';
+    qcSection.appendChild(qcDomLabel);
+    const domRow=h('div',{css:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'14px'}});
+    ['Career','Family','Relationships','Health','Finances','Education','Purpose'].forEach(function(d){
+      const b=h('button',{css:{padding:'5px 12px',borderRadius:'20px',border:'1px solid '+(S.pl.ctx.domain===d?'rgba(242,201,76,.6)':'rgba(255,255,255,.1)'),background:S.pl.ctx.domain===d?'rgba(242,201,76,.12)':'transparent',color:S.pl.ctx.domain===d?'#F2C94C':'rgba(255,255,255,.45)',fontFamily:CR,fontSize:'12px',cursor:'pointer',transition:'all .2s'},on:{click:function(){S.pl.ctx.domain=S.pl.ctx.domain===d?'':d;go('parallellives');}}},d);
+      domRow.appendChild(b);
+    });
+    qcSection.appendChild(domRow);
+
+    // ── Value chips
+    const qcValLabel=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.4)',marginBottom:'6px'}});qcValLabel.textContent='What is most at stake for you';
+    qcSection.appendChild(qcValLabel);
+    const valRow=h('div',{css:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'18px'}});
+    ['Freedom','Security','Love','Growth','Purpose','Adventure','Legacy','Recognition'].forEach(function(v){
+      const b=h('button',{css:{padding:'5px 12px',borderRadius:'20px',border:'1px solid '+(S.pl.ctx.value===v?'rgba(242,201,76,.6)':'rgba(255,255,255,.1)'),background:S.pl.ctx.value===v?'rgba(242,201,76,.12)':'transparent',color:S.pl.ctx.value===v?'#F2C94C':'rgba(255,255,255,.45)',fontFamily:CR,fontSize:'12px',cursor:'pointer',transition:'all .2s'},on:{click:function(){S.pl.ctx.value=S.pl.ctx.value===v?'':v;go('parallellives');}}},v);
+      valRow.appendChild(b);
+    });
+    qcSection.appendChild(valRow);
+
+    // ── Divider
+    qcSection.appendChild(h('div',{css:{height:'1px',background:'rgba(242,201,76,.12)',marginBottom:'16px'}}));
+
+    // ── Open question 1: Who are you right now?
+    const q1Label=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.5)',marginBottom:'6px',fontStyle:'italic'}});
+    q1Label.textContent='Who are you right now? (age, situation, life stage)';
+    const q1Wrap=h('div',{css:{position:'relative',marginBottom:'12px'}});
+    const q1=document.createElement('textarea');q1.className='av-in';
+    q1.placeholder='E.g. "32, working in finance, married with one kid, feeling stuck in my career..."';
+    q1.rows=2;q1.style.resize='none';q1.style.lineHeight='1.6';q1.style.display='block';q1.style.paddingRight='48px';
+    q1.value=S.pl.ctx.who||'';
+    q1.addEventListener('input',function(){S.pl.ctx.who=q1.value;});
+    q1Wrap.appendChild(q1);
+    var q1mic=mkMic(q1);if(q1mic){q1mic.style.position='absolute';q1mic.style.right='6px';q1mic.style.top='6px';q1mic.style.padding='6px 8px';q1Wrap.appendChild(q1mic);}
+    qcSection.appendChild(q1Label);qcSection.appendChild(q1Wrap);
+
+    // ── Open question 2: What is really at stake?
+    const q2Label=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.5)',marginBottom:'6px',fontStyle:'italic'}});
+    q2Label.textContent='What is really at stake for you in this decision?';
+    const q2Wrap=h('div',{css:{position:'relative',marginBottom:'4px'}});
+    const q2=document.createElement('textarea');q2.className='av-in';
+    q2.placeholder='E.g. "My freedom vs my security. I want to build something but fear failing my family..."';
+    q2.rows=2;q2.style.resize='none';q2.style.lineHeight='1.6';q2.style.display='block';q2.style.paddingRight='48px';
+    q2.value=S.pl.ctx.stake||'';
+    q2.addEventListener('input',function(){S.pl.ctx.stake=q2.value;});
+    q2Wrap.appendChild(q2);
+    var q2mic=mkMic(q2);if(q2mic){q2mic.style.position='absolute';q2mic.style.right='6px';q2mic.style.top='6px';q2mic.style.padding='6px 8px';q2Wrap.appendChild(q2mic);}
+    qcSection.appendChild(q2Label);qcSection.appendChild(q2Wrap);
+
+    simulateInn.appendChild(qcSection);
+  }
+
   simulateInn.appendChild(sb);
   sb.disabled=!S.pl.d.trim()||!S.pl.a.trim();
   sb.addEventListener('click',async function(){
     if(!S.pl.d.trim()||!S.pl.a.trim())return;
     S.pl.step='loading';go('parallellives');
-    const pc=S.prof?'User profile: '+JSON.stringify(S.prof)+'.':'';
-    const sys='You are Aevoras Parallel Lives Simulator — deeply empathetic, cinematic, insightful. '+pc+'\nReturn ONLY valid JSON (no markdown) with these exact fields:\n- narrative: string (4-5 vivid, poetic sentences)\n- keyMoments: array of 3 objects with year (number) and event (string)\n- insights: array of 3 strings\n- resonance: string (1 poetic sentence)\n- visualScenes: array of 2 objects with caption (string, one evocative sentence) and prompt (string, 8-12 words, cinematic scene description for AI image generation, no names, atmospheric)';
-    try{
-      const raw=await ai([{role:'user',content:'Decision: "'+S.pl.d+'"\nAlternate: "'+S.pl.a+'"\nYears: '+S.pl.y}],sys);
-      S.pl.res=JSON.parse(raw.replace(/```json|```/g,'').trim());
-    }catch{
-      S.pl.res={narrative:'Your alternate universe takes shape across '+S.pl.y+' years, carrying the same essential you through a different story. New relationships bloom where old ones never began. The version of you in this timeline carries different scars and different joys, but the same searching heart.',keyMoments:[{year:Math.round(parseInt(S.pl.y)*.25),event:'The first ripple becomes a wave. New doors open that would have stayed closed.'},{year:Math.round(parseInt(S.pl.y)*.6),event:'Unexpected challenges test the foundations of this alternate path.'},{year:parseInt(S.pl.y),event:'You stand transformed by a different journey, wiser in different ways, whole in a different sense.'}],insights:['Every path carries its own gifts and its own shadows.','The alternate choice would have revealed strengths in you that remain untested.','What you truly value reveals itself most clearly in the roads not taken.'],resonance:'This simulation illuminates the depths of what you truly seek beneath the surface of each decision.'};
+    const pc=S.prof?'User ESP profile: '+JSON.stringify(S.prof)+'. ':'';
+    var ctx=S.pl.ctx||{};
+    var qctx=(ctx.ageRange?'Age '+ctx.ageRange+'. ':'')+
+      (ctx.domain?'Domain most affected: '+ctx.domain+'. ':'')+
+      (ctx.value?'Value at stake: '+ctx.value+'. ':'')+
+      (ctx.who?ctx.who+'. ':'')+
+      (ctx.stake?ctx.stake+'. ':'');
+    // Extract user context for rich grounding
+    // Compact profile — only key fields, no full JSON dump
+    var profSummary='';
+    if(S.prof){
+      var p=S.prof;
+      profSummary=(p.age?'Age '+p.age+'. ':'')+(p.gender?p.gender+'. ':'')+(p.status?p.status+'. ':'')+
+        (p.values?'Values: '+p.values+'. ':'')+(p.goals?'Goals: '+p.goals+'. ':'')+
+        (p.strengths?'Strengths: '+p.strengths+'.':'');
     }
-    saveSim({ts:Date.now(),decision:S.pl.d,alternate:S.pl.a,years:S.pl.y,narrative:S.pl.res.narrative,keyMoments:S.pl.res.keyMoments,insights:S.pl.res.insights,resonance:S.pl.res.resonance});
+    if(qctx)profSummary+=(profSummary?' ':'')+qctx;
+
+    const sys='You are a biographer writing a specific, grounded alternate life story. Write in second person. Return ONLY valid JSON, no markdown.';
+
+    var yr=parseInt(S.pl.y)||10;
+    var userMsg=
+      'DECISION MADE: "'+S.pl.d+'"\n'+
+      'ALTERNATE PATH: "'+S.pl.a+'"\n'+
+      'HORIZON: '+yr+' years\n'+
+      (profSummary?'PERSON: '+profSummary+'\n':'')+
+      'Write a rich, grounded story about this alternate path. Use real organizations from the text (ASCO, MoDI, etc). No generic sentences.\n'+
+      'JSON format: {"narrative":"2-3 sentences","chapters":[{"title":"3-5 words","period":"Years 1-2","story":"150+ words specific story","emotion":"word"},{"title":"...","period":"Years 3-4","story":"150+ words","emotion":"word"},{"title":"...","period":"Year '+yr+'","story":"150+ words","emotion":"word"}],"keyMoments":[{"year":2,"event":"specific"},{"year":4,"event":"specific"},{"year":'+yr+',"event":"specific"}],"emotionalArc":[{"year":1,"emotion":"word","intensity":45},{"year":2,"emotion":"word","intensity":65},{"year":3,"emotion":"word","intensity":55},{"year":4,"emotion":"word","intensity":72},{"year":'+yr+',"emotion":"word","intensity":80}],"insights":["trade-off insight","what gained","what revealed"],"resonance":"one sentence","visualScenes":[{"caption":"sentence","prompt":"10 words"},{"caption":"sentence","prompt":"10 words"},{"caption":"sentence","prompt":"10 words"}]}';
+
+    try{
+      const raw=await ai([{role:'user',content:userMsg}],sys,2,{tokens:3000});
+      if(!raw||typeof raw!=='string'){throw new Error('API returned empty: '+(raw===null?'null':typeof raw));}
+      if(raw.startsWith('__ERR__:')){throw new Error('API error: '+raw.replace('__ERR__:','')+' | detail: '+S._apiLastErr);}
+      var cleaned=raw.replace(/```json|```/g,'').trim();
+      var js=cleaned.indexOf('{'),je=cleaned.lastIndexOf('}');
+      if(js>-1&&je>js)cleaned=cleaned.slice(js,je+1);
+      if(!cleaned||cleaned.length<10){throw new Error('No JSON found in response');}
+      S.pl.res=JSON.parse(cleaned);
+      S._simDebug='OK: '+cleaned.substring(0,80);
+    }catch(e){
+      S._simDebug='ERROR: '+e.message;
+      S.pl.res={narrative:'Your alternate universe takes shape across '+S.pl.y+' years. New relationships bloom where old ones never began. The version of you in this timeline carries different scars and different joys, but the same searching heart.',chapters:[{title:'The First Step',period:'Years 1-2',story:'You take the alternate path and immediately feel the weight of the unknown. Early challenges test your resolve as familiar comforts fall away. New connections form slowly, each one hard-earned.',emotion:'Uncertain'},{title:'Finding Footing',period:'Years 3-4',story:'The alternate choice begins to take shape in ways you could not have predicted. Some sacrifices prove worth it; others leave unexpected voids. You adapt and discover strengths previously untested.',emotion:'Determined'},{title:'A Different Whole',period:'Year '+S.pl.y,story:'Looking back across this alternate timeline, you see a life shaped by different choices but the same essential character. What you gained differs from what you lost, and both were real.',emotion:'Reflective'}],keyMoments:[{year:Math.round(parseInt(S.pl.y)*.25),event:'The first major consequence of your alternate choice becomes clear.'},{year:Math.round(parseInt(S.pl.y)*.6),event:'A pivotal moment where the alternate path diverges most sharply from your current life.'},{year:parseInt(S.pl.y),event:'You reach a point of reflection on all that this alternate path has given and taken.'}],insights:['The alternate choice would have tested different strengths than your current path.','What you truly value becomes clearest when you imagine trading it for something else.','Every decision closes one story and opens another — neither is complete without the other.'],resonance:'This simulation reveals what you quietly hope your choices are building toward.',emotionalArc:[{year:1,emotion:'Hopeful',intensity:60},{year:2,emotion:'Uncertain',intensity:45},{year:3,emotion:'Determined',intensity:70},{year:4,emotion:'Grounded',intensity:75},{year:5,emotion:'Reflective',intensity:80}],visualScenes:[{caption:'The moment the alternate path begins.',prompt:'solitary figure at crossroads dawn cinematic atmospheric'},{caption:'Finding meaning in the new direction.',prompt:'person building something new warm golden light hope'},{caption:'Reflecting on the journey taken.',prompt:'contemplative figure looking back on lived life dusk'}]};
+    }
+    S.pl.res.decision=S.pl.d;S.pl.res.alternate=S.pl.a;S.pl.res.years=S.pl.y;
+    saveSim({ts:Date.now(),decision:S.pl.d,alternate:S.pl.a,years:S.pl.y,narrative:S.pl.res.narrative,chapters:S.pl.res.chapters,keyMoments:S.pl.res.keyMoments,insights:S.pl.res.insights,resonance:S.pl.res.resonance,visualScenes:S.pl.res.visualScenes,emotionalArc:S.pl.res.emotionalArc});
     S.pl.step='result';go('parallellives');
   });
-  inn.appendChild(sb);
-  // Past simulations
+  // Past simulations — inside simulateInn so they show/hide with the tab
   const sims=getSims();
   if(sims.length>0){
-    simulateInn.appendChild(h('div',{css:{height:'1px',background:C.bo,margin:'28px 0 20px'}}));
-    simulateInn.appendChild(h('p',{css:{color:C.mu,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'14px',fontFamily:CR}},t('pl_past')));
+    const pastDiv=h('div',{css:{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid rgba(255,255,255,.07)'}});
+    pastDiv.appendChild(h('p',{css:{color:C.mu,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'14px',fontFamily:CR}},t('pl_past')));
     sims.forEach(function(sim){
       const card=h('div',{css:{background:'rgba(26,16,48,0.7)',border:'1px solid '+C.bo,borderRadius:'10px',padding:'14px',marginBottom:'10px',cursor:'pointer',transition:'all .2s'}});
       card.addEventListener('mouseenter',function(){card.style.borderColor=C.tb;card.style.background='rgba(26,16,48,0.95)';});
@@ -2379,8 +2733,9 @@ function PL(){
       ct.appendChild(h('span',{css:{fontFamily:CR,fontSize:'11px',color:C.tl,whiteSpace:'nowrap',background:C.tf,border:'1px solid '+C.tb,borderRadius:'4px',padding:'2px 6px'}},sim.years+'yr'));
       card.appendChild(ct);
       card.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:C.mu}},fmtDate(sim.ts)));
-      inn.appendChild(card);
+      pastDiv.appendChild(card);
     });
+    simulateInn.appendChild(pastDiv);
   }
   return w;
 }
@@ -2389,8 +2744,8 @@ function PL(){
 // ── MODULES PAGE
 const ALL_MODS=[
   // ── INNER UNIVERSE (8)
-  {id:'parallellives', name:'Parallel Lives',       desc:'Simulate alternate life decisions and analyse future regret',        on:true,  cat:'inner'},
   {id:'therapist',     name:'AI Therapist',          desc:'Compassionate AI conversations for emotional clarity',              on:true,  cat:'inner'},
+  {id:'parallellives', name:'Parallel Lives',        desc:'Simulate alternate life decisions and analyse future regret',        on:true,  cat:'inner'},
   
     {id:'dreams',        name:'Dream Weaver',          desc:'Nightly dream logging with deep AI interpretation',                 on:false, cat:'inner'},
 {id:'future',        name:'Future Self Mirror',    desc:'A conversation with your elder self — 10, 20 or 30 years ahead',    on:true,  cat:'inner'},
