@@ -291,6 +291,21 @@ function buildUserContext(moduleId){
     }).join('\n');
     parts.push('[THERAPY INSIGHTS]\n'+insStr);
   }
+  // Recent simulations
+  if(S.pl&&S.pl.sims&&S.pl.sims.length){
+    var simStr=S.pl.sims.slice(0,3).map(function(s){
+      return 'Simulated: "'+s.decision.substring(0,80)+'" ('+s.years+'yr alternate life)';
+    }).join('\n');
+    parts.push('[PAST SIMULATIONS]\n'+simStr);
+  }
+  // Recent decision analyses
+  if(S.pl&&S.pl.analyses&&S.pl.analyses.length){
+    var anaStr=S.pl.analyses.slice(0,3).map(function(a){
+      var d=a.data||{};var pA=d.pathA||{};var pB=d.pathB||{};
+      return 'Analysed: "'+a.pathA.substring(0,50)+' vs '+a.pathB.substring(0,50)+'" → recommended Path '+(d.verdict||'?')+' ('+((pA.regretScore||0))+'% vs '+((pB.regretScore||0))+'% regret risk)';
+    }).join('\n');
+    parts.push('[PAST DECISION ANALYSES]\n'+anaStr);
+  }
   // Session log — last 8 entries, skip same module to avoid echo
   if(S.log&&S.log.length){
     var logs=S.log.filter(function(l){return l.module!==moduleId;}).slice(0,8);
@@ -580,6 +595,9 @@ function LoginPage(){
     if(stored&&stored.email.toLowerCase()===email.toLowerCase()&&stored.password===pass){
       S.user=stored;
       if(stored.prof)S.prof=stored.prof;
+      if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
+      if(stored.log)S.log=stored.log;
+      if(stored.dataSources)S.dataSources=stored.dataSources;
       go('home');
     } else if(stored&&stored.email.toLowerCase()===email.toLowerCase()){
       errMsg.textContent='Incorrect password. Try again or create a new account.';
@@ -2048,10 +2066,22 @@ function Therapist(){
 
 // ── STORAGE HELPERS
 function saveSim(sim){
-  try{const sims=getSims();sims.unshift(sim);if(sims.length>50)sims.length=50;localStorage.setItem('aevora_sims',JSON.stringify(sims));}catch(e){}
+  if(!S.pl)S.pl={};
+  if(!S.pl.sims)S.pl.sims=[];
+  S.pl.sims.unshift(sim);
+  if(S.pl.sims.length>50)S.pl.sims.length=50;
+  try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}
+  // also keep localStorage as fallback
+  try{localStorage.setItem('aevora_sims',JSON.stringify(S.pl.sims));}catch(e){}
 }
 function getSims(){
-  try{return JSON.parse(localStorage.getItem('aevora_sims')||'[]');}catch{return[];}
+  // prefer app state, fall back to localStorage
+  if(S.pl&&S.pl.sims&&S.pl.sims.length)return S.pl.sims;
+  try{
+    var stored=JSON.parse(localStorage.getItem('aevora_sims')||'[]');
+    if(stored.length){if(!S.pl)S.pl={};S.pl.sims=stored;}
+    return stored;
+  }catch{return[];}
 }
 function fmtDate(ts){
   const d=new Date(ts);
@@ -2517,10 +2547,16 @@ function PL(){
     inn.appendChild(p);w.appendChild(inn);return w;
   }
   if(S.pl.step==='result'&&S.pl.res){
-    return renderSimResult(S.pl.res,function(){S.pl.step='input';go('home');},function(){S.pl.step='input';S.pl.res=null;go('parallellives');});
+    return renderSimResult(S.pl.res,function(){S.pl.step='input';S.pl.tab='simulate';S.pl._rebuildSim=true;go('parallellives');},function(){S.pl.step='input';S.pl.res=null;go('parallellives');});
   }
   if(S.pl.step==='detail'&&S.pl.detail){
-    return renderSimResult(S.pl.detail,function(){S.pl.step='input';S.pl.detail=null;go('parallellives');},null);
+    return renderSimResult(S.pl.detail,function(){S.pl.step='input';S.pl.tab='simulate';S.pl.detail=null;S.pl._rebuildSim=true;go('parallellives');},null);
+  }
+  if(S.pl.step==='analyseResult'&&S.pl.aRes){
+    return renderAnalyseResult(S.pl.aRes,function(){S.pl.step='input';S.pl.tab='analyse';S.pl._rebuildAnalyse=true;go('parallellives');},true);
+  }
+  if(S.pl.step==='analyseDetail'&&S.pl.aDetail){
+    return renderAnalyseResult(S.pl.aDetail,function(){S.pl.step='input';S.pl.tab='analyse';S.pl.aDetail=null;go('parallellives');},false);
   }
   // Input screen
   const w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent'}});
@@ -2811,12 +2847,22 @@ function PL(){
     logSession('parallellives_simulate','Simulated alternate life: '+S.pl.d.substring(0,100),['simulation','alternate_life'],{horizon:S.pl.y,decision:S.pl.d.substring(0,60)});
     go('parallellives');
   });
-  // Past simulations — inside simulateInn so they show/hide with the tab
-  const sims=getSims();
-  if(sims.length>0){
-    const pastDiv=h('div',{css:{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid rgba(255,255,255,.07)'}});
+  // Past simulations — dynamic, refreshes on each render
+  function renderSimHistory(){
+    var prev=simulateInn.querySelector('.sim-hist');
+    if(prev)prev.remove();
+    // Migrate old localStorage sims if needed
+    if(!S.pl.sims||!S.pl.sims.length){
+      try{
+        var old=JSON.parse(localStorage.getItem('aevora_sims')||'[]');
+        if(old.length){S.pl.sims=old;}
+      }catch(e){}
+    }
+    const sims=getSims();
+    if(!sims.length)return;
+    const pastDiv=h('div',{cls:'sim-hist',css:{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid rgba(255,255,255,.07)'}});
     pastDiv.appendChild(h('p',{css:{color:C.mu,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'14px',fontFamily:CR}},t('pl_past')));
-    sims.forEach(function(sim){
+    sims.slice(0,10).forEach(function(sim){
       const card=h('div',{css:{background:'rgba(26,16,48,0.7)',border:'1px solid '+C.bo,borderRadius:'10px',padding:'14px',marginBottom:'10px',cursor:'pointer',transition:'all .2s'}});
       card.addEventListener('mouseenter',function(){card.style.borderColor=C.tb;card.style.background='rgba(26,16,48,0.95)';});
       card.addEventListener('mouseleave',function(){card.style.borderColor=C.bo;card.style.background='rgba(26,16,48,0.7)';});
@@ -2830,6 +2876,9 @@ function PL(){
     });
     simulateInn.appendChild(pastDiv);
   }
+  renderSimHistory();
+  // Refresh after returning from result
+  if(S.pl&&S.pl._rebuildSim){S.pl._rebuildSim=false;setTimeout(renderSimHistory,100);}
   return w;
 }
 
@@ -3886,6 +3935,8 @@ function buildPLAnalyseTab(analyseInn){
   pathATa.className='av-in';pathATa.placeholder='e.g. Stay in my current job...';
   pathATa.rows=2;pathATa.style.resize='none';pathATa.style.lineHeight='1.7';
   pathATa.style.display='block';pathATa.style.paddingRight='40px';
+  if(S.pl&&S.pl._aIn)pathATa.value=S.pl._aIn.pathA||'';
+  pathATa.addEventListener('input',function(){if(!S.pl._aIn)S.pl._aIn={};S.pl._aIn.pathA=pathATa.value;});
   pathAWrap.appendChild(pathATa);
   var pathAMic=mkMic(pathATa);if(pathAMic){pathAMic.style.position='absolute';pathAMic.style.right='6px';pathAMic.style.top='6px';pathAMic.style.padding='6px 8px';pathAWrap.appendChild(pathAMic);}
   analyseInn.appendChild(pathAWrap);
@@ -3898,6 +3949,8 @@ function buildPLAnalyseTab(analyseInn){
   pathBTa.className='av-in';pathBTa.placeholder='e.g. Accept the new offer in Dubai...';
   pathBTa.rows=2;pathBTa.style.resize='none';pathBTa.style.lineHeight='1.7';
   pathBTa.style.display='block';pathBTa.style.paddingRight='40px';
+  if(S.pl&&S.pl._aIn)pathBTa.value=S.pl._aIn.pathB||'';
+  pathBTa.addEventListener('input',function(){if(!S.pl._aIn)S.pl._aIn={};S.pl._aIn.pathB=pathBTa.value;});
   pathBWrap.appendChild(pathBTa);
   var pathBMic=mkMic(pathBTa);if(pathBMic){pathBMic.style.position='absolute';pathBMic.style.right='6px';pathBMic.style.top='6px';pathBMic.style.padding='6px 8px';pathBWrap.appendChild(pathBMic);}
   analyseInn.appendChild(pathBWrap);
@@ -3910,6 +3963,8 @@ function buildPLAnalyseTab(analyseInn){
   diffTa.className='av-in';diffTa.placeholder='What fears, pressures or conflicts are pulling you in different directions...';
   diffTa.rows=3;diffTa.style.resize='none';diffTa.style.lineHeight='1.7';
   diffTa.style.display='block';diffTa.style.paddingRight='40px';
+  if(S.pl&&S.pl._aIn)diffTa.value=S.pl._aIn.diff||'';
+  diffTa.addEventListener('input',function(){if(!S.pl._aIn)S.pl._aIn={};S.pl._aIn.diff=diffTa.value;});
   diffWrap.appendChild(diffTa);
   var diffMic=mkMic(diffTa);if(diffMic){diffMic.style.position='absolute';diffMic.style.right='6px';diffMic.style.top='6px';diffMic.style.padding='6px 8px';diffWrap.appendChild(diffMic);}
   analyseInn.appendChild(diffWrap);
@@ -3950,68 +4005,217 @@ function buildPLAnalyseTab(analyseInn){
       return;
     }
     aBtn.textContent='Analysing...';aBtn.disabled=true;
-    var pc=S.prof?'User profile: '+JSON.stringify(S.prof)+'. ':'';
     var ctx=buildUserContext('parallellives_analyse');
-    var sys='You are Aevoras Regret Minimizer. Return ONLY valid JSON with: regretScore (0-100), changeScore (0-100), verdict (1 sentence), reasoning (2-3 sentences), microPlan (array of 3: {day,action,why}), watchOut (1 key risk).'+ctx;
-    var rep=await ai([{role:'user',content:'Domains: '+(selDomains.length?selDomains.join(', '):'general')+'\nTime horizon: '+selHorizon+'\nPath A: '+pathATa.value+'\nPath B: '+pathBTa.value+'\nWhat makes it difficult: '+diffTa.value}],sys);
+    var sys='You are Aevoras Regret Minimizer — a deeply wise, data-driven advisor. Analyse the two paths the user is facing and return ONLY valid JSON (no markdown) with this exact schema: { "pathA": { "name": string (short label for Path A), "regretScore": number 0-100 (probability of future regret), "topRisk": string (1 sentence — biggest risk of this path), "regretWindow": string (when regret would likely peak, e.g. "6-18 months" or "3-5 years") }, "pathB": { "name": string, "regretScore": number 0-100, "topRisk": string, "regretWindow": string }, "verdict": "A" or "B" (which path has lower regret risk), "verdictReason": string (2 sentences — why this path wins, referencing user values and context), "keyFactors": [ { "factor": string, "favoursPath": "A" or "B", "weight": "High" or "Medium" or "Low" } ] (exactly 3 factors driving the scores), "microPlan": [ { "step": string (label e.g. "This week"), "action": string, "why": string } ] (exactly 3 steps to move forward on the recommended path), "watchOut": string (single most important risk to watch regardless of chosen path) }. Be specific, not generic. Reference the user values, fears, and context to make it feel personal.'+ctx;
+    var rep=await ai([{role:'user',content:'Domains: '+(selDomains.length?selDomains.join(', '):'general')+'\nTime horizon: '+selHorizon+'\nPath A: '+pathATa.value+'\nPath B: '+pathBTa.value+'\nWhat makes this difficult: '+diffTa.value}],sys);
     aBtn.textContent='Analyse My Decision';aBtn.disabled=false;
     if(!rep){aResults.innerHTML='';var err=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,107,107,.7)',padding:'12px 0',textAlign:'center'}});err.textContent='Could not complete analysis — please try again.';aResults.appendChild(err);return;}
     var data={};
     try{data=JSON.parse(rep.replace(/```json|```/g,'').trim());}
-    catch(e){data={regretScore:60,changeScore:40,verdict:rep,reasoning:'',microPlan:[],watchOut:''};}
+    catch(e){data={pathA:{name:pathATa.value.substring(0,30),regretScore:60,topRisk:'',regretWindow:''},pathB:{name:pathBTa.value.substring(0,30),regretScore:40,topRisk:'',regretWindow:''},verdict:'B',verdictReason:rep,keyFactors:[],microPlan:[],watchOut:''};}
+    if(!S.pl)S.pl={};if(!S.pl.analyses)S.pl.analyses=[];
+    S.pl.analyses.unshift({ts:Date.now(),domains:selDomains,horizon:selHorizon,pathA:pathATa.value.substring(0,80),pathB:pathBTa.value.substring(0,80),data:data});
+    if(S.pl.analyses.length>20)S.pl.analyses.length=20;
+    try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}
     savePlan({ts:Date.now(),domain:selDomains.length?selDomains.join(', '):'general',decision:(pathATa.value+' vs '+pathBTa.value).substring(0,80),data:data});
-    logSession('parallellives_analyse','Decision analysis: '+pathATa.value.substring(0,60)+' vs '+pathBTa.value.substring(0,60),selDomains,{regretScore:data.regretScore,changeScore:data.changeScore,verdict:data.verdict});
-    renderAResult(data,aResults);
+    logSession('parallellives_analyse','Decision: '+pathATa.value.substring(0,50)+' vs '+pathBTa.value.substring(0,50),selDomains,{verdict:data.verdict,pathAScore:(data.pathA||{}).regretScore,pathBScore:(data.pathB||{}).regretScore});
+    S.pl.aRes={ts:Date.now(),pathA:pathATa.value,pathB:pathBTa.value,domains:selDomains,horizon:selHorizon,data:data};
+    S.pl.step='analyseResult';
+    go('parallellives');
   });
 
-  var plans=getSaved();
-  if(plans.length>0){
-    analyseInn.appendChild(h('div',{css:{height:'1px',background:'rgba(255,255,255,.06)',margin:'20px 0 14px'}}));
-    var pl=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}});pl.textContent='Previous Analyses';analyseInn.appendChild(pl);
-    plans.slice(0,3).forEach(function(p){
-      var c=h('div',{css:{background:'rgba(20,13,38,.8)',border:'1px solid rgba(255,255,255,.06)',borderRadius:'10px',padding:'12px 14px',marginBottom:'8px',cursor:'pointer'},on:{click:function(){aResults.innerHTML='';renderAResult(p.data,aResults);}}});
-      var ct=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}});
-      var dc=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.7)',flex:'1',marginRight:'8px'}});dc.textContent=p.decision+'...';
-      var sc=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'#FF6B6B',background:'rgba(255,107,107,.1)',border:'1px solid rgba(255,107,107,.2)',borderRadius:'8px',padding:'2px 8px',flexShrink:'0'}});sc.textContent=p.data.regretScore+'% risk';
-      ct.appendChild(dc);ct.appendChild(sc);c.appendChild(ct);
-      c.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}},fmtJournalDate(p.ts)));
-      analyseInn.appendChild(c);
+  function renderHistory(){
+    var prev=analyseInn.querySelector('.hist-section');
+    if(prev)prev.remove();
+    // Merge localStorage fallback (aevora_regret) into S.pl.analyses
+    if(!S.pl.analyses||!S.pl.analyses.length){
+      try{
+        var old=JSON.parse(localStorage.getItem('aevora_regret')||'[]');
+        if(old.length){
+          S.pl.analyses=old.map(function(p){return{ts:p.ts,domains:[p.domain||'general'],horizon:'',pathA:p.decision||'',pathB:'',data:p.data};});
+        }
+      }catch(e){}
+    }
+    var analyses=(S.pl&&S.pl.analyses)||[];
+    if(!analyses.length)return;
+    var sec=h('div',{cls:'hist-section'});
+    sec.appendChild(h('div',{css:{height:'1px',background:'rgba(255,255,255,.06)',margin:'20px 0 14px'}}));
+    sec.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Previous Analyses'));
+    analyses.slice(0,5).forEach(function(p){
+      var d=p.data||{};
+      var pA=d.pathA||{};var pB=d.pathB||{};
+      var winner=d.verdict==='A'?pA:pB;
+      var winCol=d.verdict==='A'?'#60A5FA':'#34D399';
+      var c=h('div',{css:{background:'rgba(20,13,38,.8)',border:'1px solid rgba(255,255,255,.06)',borderRadius:'12px',padding:'12px 14px',marginBottom:'8px',cursor:'pointer'},on:{click:function(){S.pl.aDetail={ts:p.ts,pathA:p.pathA,pathB:p.pathB,domains:p.domains,horizon:p.horizon,data:d};S.pl.step='analyseDetail';go('parallellives');}}});
+      var top=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}});
+      var names=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.7)',flex:'1',marginRight:'8px',lineHeight:'1.5'}});
+      names.textContent=(pA.name||p.pathA||'Path A').substring(0,28)+' vs '+(pB.name||p.pathB||'Path B').substring(0,28);
+      var badge=h('span',{css:{fontFamily:CR,fontSize:'11px',color:winCol,background:'rgba(255,255,255,.05)',border:'1px solid '+winCol+'40',borderRadius:'8px',padding:'2px 8px',flexShrink:'0',whiteSpace:'nowrap'}});
+      badge.textContent='Path '+(d.verdict||'?')+' wins';
+      top.appendChild(names);top.appendChild(badge);c.appendChild(top);
+      var bot=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center'}});
+      var dom=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});
+      dom.textContent=(p.domains&&p.domains.length?p.domains.slice(0,2).join(', '):'general')+(p.horizon?' · '+p.horizon:'');
+      var dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});dt.textContent=fmtJournalDate(p.ts);
+      bot.appendChild(dom);bot.appendChild(dt);c.appendChild(bot);
+      sec.appendChild(c);
     });
+    analyseInn.appendChild(sec);
   }
+  renderHistory();
+  if(S.pl&&S.pl._rebuildAnalyse){S.pl._rebuildAnalyse=false;setTimeout(renderHistory,100);}
+}
+
+function renderAnalyseResult(entry, onBack, isNew){
+  var data=entry.data||{};
+  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent'}});
+  w.appendChild(stars(30));
+  var scrl=h('div',{cls:'av-msgs',css:{overflowY:'auto',height:'100vh',paddingBottom:'40px'}});
+  w.appendChild(scrl);
+  var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
+  scrl.appendChild(inn);
+
+  // ── Header row
+  var topRow=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}});
+  topRow.appendChild(mkBackBtn('Back',onBack));
+  var headerMeta=h('div',{css:{textAlign:'center',flex:'1'}});
+  headerMeta.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.18em',textTransform:'uppercase',color:'#FF6B6B'}},'Parallel Lives · Analysis'));
+  if(entry.horizon)headerMeta.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)',marginTop:'2px'}},entry.horizon+' horizon'));
+  topRow.appendChild(headerMeta);
+  if(isNew){
+    var newBtn=h('button',{css:{display:'flex',alignItems:'center',gap:'5px',padding:'5px 12px',borderRadius:'20px',border:'1px solid rgba(255,107,107,.3)',background:'rgba(255,107,107,.06)',color:'rgba(255,107,107,.7)',fontFamily:CR,fontSize:'11px',cursor:'pointer',transition:'all .2s'},on:{click:function(){S.pl.step='input';S.pl.tab='analyse';S.pl.aRes=null;go('parallellives');}}});
+    newBtn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New</span>';
+    topRow.appendChild(newBtn);
+  }
+  inn.appendChild(topRow);
+
+  // ── Path names subtitle
+  if(entry.pathA&&entry.pathB){
+    var sub=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'16px',lineHeight:'1.5'}});
+    sub.textContent=entry.pathA.substring(0,40)+'  vs  '+entry.pathB.substring(0,40);
+    inn.appendChild(sub);
+  }
+
+  // ── Domains + date row
+  if(entry.domains&&entry.domains.length||entry.ts){
+    var meta=h('div',{css:{display:'flex',justifyContent:'center',gap:'8px',flexWrap:'wrap',marginBottom:'20px'}});
+    (entry.domains||[]).slice(0,3).forEach(function(d){
+      meta.appendChild(h('span',{css:{fontFamily:CR,fontSize:'10px',padding:'2px 8px',borderRadius:'8px',background:'rgba(255,107,107,.08)',border:'1px solid rgba(255,107,107,.2)',color:'rgba(255,107,107,.7)'}},d));
+    });
+    if(entry.ts){meta.appendChild(h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.25)'}},fmtDate(entry.ts)));}
+    inn.appendChild(meta);
+  }
+
+  // ── Full result using renderAResult logic inline
+  var resultContainer=h('div',{});
+  inn.appendChild(resultContainer);
+  renderAResult(data,resultContainer);
+
+  return w;
+}
+
+function mkArcGauge(score,col){
+  var r=36,cx=44,cy=44,stroke=6;
+  var circ=Math.PI*r;
+  var offset=circ-(score/100)*circ;
+  var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width','88');svg.setAttribute('height','52');svg.setAttribute('viewBox','0 0 88 60');
+  var bg=document.createElementNS('http://www.w3.org/2000/svg','path');
+  bg.setAttribute('d','M8,44 A36,36 0 0,1 80,44');
+  bg.setAttribute('fill','none');bg.setAttribute('stroke','rgba(255,255,255,.07)');bg.setAttribute('stroke-width',stroke);bg.setAttribute('stroke-linecap','round');
+  var fg=document.createElementNS('http://www.w3.org/2000/svg','path');
+  fg.setAttribute('d','M8,44 A36,36 0 0,1 80,44');
+  fg.setAttribute('fill','none');fg.setAttribute('stroke',col);fg.setAttribute('stroke-width',stroke);fg.setAttribute('stroke-linecap','round');
+  fg.setAttribute('stroke-dasharray',circ);fg.setAttribute('stroke-dashoffset',offset);
+  fg.style.transition='stroke-dashoffset 1s ease';
+  svg.appendChild(bg);svg.appendChild(fg);
+  return svg;
 }
 
 function renderAResult(data,container){
   container.innerHTML='';
   var _atag=mkPersonalisedTag();if(_atag)container.appendChild(_atag);
-  var sRow=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'16px'}});
-  [{label:'Risk if you stay',score:data.regretScore,col:'#FF6B6B'},{label:'Risk if you change',score:data.changeScore,col:'#34D399'}].forEach(function(s){
-    var c=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'14px',textAlign:'center'}});
-    var p=h('p',{css:{fontFamily:PF,fontSize:'36px',fontWeight:'700',color:s.col,marginBottom:'4px'}});p.textContent=s.score+'%';
-    var l=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.45)',lineHeight:'1.4'}});l.textContent=s.label;
-    c.appendChild(p);c.appendChild(l);sRow.appendChild(c);
+
+  var pA=data.pathA||{name:'Path A',regretScore:data.regretScore||50,topRisk:'',regretWindow:''};
+  var pB=data.pathB||{name:'Path B',regretScore:data.changeScore||50,topRisk:'',regretWindow:''};
+  var winner=data.verdict==='A'?'A':'B';
+  var winCol='#34D399';
+
+  // ── Score cards with arc gauges
+  var sRow=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'14px'}});
+  [{path:'A',d:pA,col:'#60A5FA'},{path:'B',d:pB,col:'#34D399'}].forEach(function(s){
+    var isWin=winner===s.path;
+    var card=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid '+(isWin?s.col+'40':'rgba(255,255,255,.07)'),borderRadius:'14px',padding:'14px 10px',textAlign:'center',position:'relative',boxShadow:isWin?'0 0 16px '+s.col+'18':'none'}});
+    if(isWin){var wb=h('div',{css:{position:'absolute',top:'-10px',left:'50%',transform:'translateX(-50%)',background:s.col,borderRadius:'10px',padding:'2px 10px',fontFamily:CR,fontSize:'9px',letterSpacing:'.1em',textTransform:'uppercase',color:'#0D0B23',fontWeight:'700',whiteSpace:'nowrap'}});wb.textContent='Recommended';card.appendChild(wb);}
+    card.appendChild(mkArcGauge(s.d.regretScore,s.col));
+    var sc=h('p',{css:{fontFamily:PF,fontSize:'28px',fontWeight:'700',color:s.col,margin:'-4px 0 2px'}});sc.textContent=s.d.regretScore+'%';
+    var nm=h('p',{css:{fontFamily:CR,fontSize:'11px',fontWeight:'600',color:'rgba(255,255,255,.75)',marginBottom:'4px'}});nm.textContent=s.d.name||('Path '+s.path);
+    var rl=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.35)',lineHeight:'1.4',marginBottom:s.d.regretWindow?'4px':'0'}});rl.textContent='regret risk';
+    card.appendChild(sc);card.appendChild(nm);card.appendChild(rl);
+    if(s.d.regretWindow){var rw=h('div',{css:{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'10px',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',marginTop:'2px'}});rw.appendChild(h('span',{css:{fontSize:'9px'}},'⏱'));rw.appendChild(h('span',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(255,255,255,.4)'}},s.d.regretWindow));card.appendChild(rw);}
+    if(s.d.topRisk){var tr=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.3)',lineHeight:'1.4',marginTop:'6px',padding:'0 2px'}});tr.textContent=s.d.topRisk;card.appendChild(tr);}
+    sRow.appendChild(card);
   });
   container.appendChild(sRow);
-  if(data.verdict){
-    var vc=h('div',{css:{background:'rgba(255,107,107,.07)',border:'1px solid rgba(255,107,107,.2)',borderRadius:'12px',padding:'14px',marginBottom:'14px'}});
-    var vt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'15px',color:'rgba(255,255,255,.88)',lineHeight:'1.7',marginBottom:'8px'}});vt.textContent='"'+data.verdict+'"';
-    var rt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)',lineHeight:'1.65'}});rt.textContent=data.reasoning||'';
-    vc.appendChild(vt);vc.appendChild(rt);container.appendChild(vc);
+
+  // ── Verdict banner
+  if(data.verdictReason){
+    var vc=h('div',{css:{background:'rgba(52,211,153,.06)',border:'1px solid rgba(52,211,153,.2)',borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}});
+    var vl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(52,211,153,.7)',marginBottom:'6px'}});vl.textContent='Why Path '+winner+' carries less regret';
+    var vt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.75)',lineHeight:'1.7'}});vt.textContent=data.verdictReason;
+    vc.appendChild(vl);vc.appendChild(vt);container.appendChild(vc);
   }
-  (data.microPlan||[]).forEach(function(step,i){
-    var c=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'8px',display:'flex',gap:'12px',alignItems:'flex-start'}});
-    var n=h('div',{css:{width:'28px',height:'28px',borderRadius:'50%',background:'rgba(255,107,107,.15)',border:'1px solid rgba(255,107,107,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontFamily:CR,fontSize:'11px',fontWeight:'700',color:'#FF6B6B'}});n.textContent=String(i+1);
-    var t=h('div',{});
-    t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,107,107,.7)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'3px'}},step.day||''));
-    t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.85)',fontWeight:'500',marginBottom:'3px'}},step.action||''));
-    t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',lineHeight:'1.5'}},step.why||''));
-    c.appendChild(n);c.appendChild(t);container.appendChild(c);
-  });
+
+  // ── Key factors
+  if(data.keyFactors&&data.keyFactors.length){
+    var kf=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'14px'}});
+    kf.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Key Factors'));
+    data.keyFactors.forEach(function(f){
+      var row=h('div',{css:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}});
+      var wCol=f.favoursPath==='A'?'#60A5FA':'#34D399';
+      var wb=h('span',{css:{fontFamily:CR,fontSize:'10px',padding:'2px 8px',borderRadius:'8px',background:'rgba(255,255,255,.05)',border:'1px solid '+wCol+'40',color:wCol,flexShrink:'0',whiteSpace:'nowrap'}});wb.textContent='Path '+f.favoursPath;
+      var ft=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.75)',flex:'1'}});ft.textContent=f.factor;
+      var wt=h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.3)',flexShrink:'0'}});wt.textContent=f.weight||'';
+      row.appendChild(wb);row.appendChild(ft);row.appendChild(wt);kf.appendChild(row);
+    });
+    container.appendChild(kf);
+  }
+
+  // ── Micro-plan
+  if(data.microPlan&&data.microPlan.length){
+    container.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'Your 3-Step Action Plan'));
+    (data.microPlan||[]).forEach(function(step,i){
+      var c=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'8px',display:'flex',gap:'12px',alignItems:'flex-start'}});
+      var chk=h('div',{css:{width:'22px',height:'22px',borderRadius:'6px',border:'1px solid rgba(52,211,153,.4)',background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',cursor:'pointer',marginTop:'2px',transition:'all .2s'}});
+      var done=false;
+      chk.addEventListener('click',function(){done=!done;chk.style.background=done?'#34D399':'transparent';chk.style.borderColor=done?'#34D399':'rgba(52,211,153,.4)';chk.innerHTML=done?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>':'';});
+      var t=h('div',{css:{flex:'1'}});
+      t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(52,211,153,.7)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'3px'}},step.step||'Step '+(i+1)));
+      t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.85)',fontWeight:'500',marginBottom:'3px'}},step.action||''));
+      t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',lineHeight:'1.5'}},step.why||''));
+      c.appendChild(chk);c.appendChild(t);container.appendChild(c);
+    });
+  }
+
+  // ── Watch out
   if(data.watchOut){
     var w=h('div',{css:{background:'rgba(251,191,36,.06)',border:'1px solid rgba(251,191,36,.2)',borderRadius:'10px',padding:'12px 14px',display:'flex',gap:'10px',alignItems:'flex-start',marginBottom:'14px'}});
-    var wi=h('span',{css:{fontSize:'14px',flexShrink:'0'}});wi.textContent='⚡';
-    var wt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.65)',lineHeight:'1.6'}});wt.textContent=data.watchOut;
-    w.appendChild(wi);w.appendChild(wt);container.appendChild(w);
+    w.appendChild(h('span',{css:{fontSize:'14px',flexShrink:'0'}},'⚡'));
+    w.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.65)',lineHeight:'1.6'}},data.watchOut));
+    container.appendChild(w);
   }
+
+  // ── Discuss with AI Therapist
+  var thBtn=h('button',{css:{width:'100%',padding:'13px',borderRadius:'12px',border:'1px solid rgba(0,229,192,.25)',background:'rgba(0,229,192,.06)',color:TEAL,fontFamily:CR,fontSize:'13px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginBottom:'8px',transition:'all .2s'}});
+  thBtn.innerHTML='<span style="font-size:15px">◎</span><span>Discuss this with AI Therapist</span>';
+  thBtn.addEventListener('mouseenter',function(){thBtn.style.background='rgba(0,229,192,.12)';thBtn.style.borderColor='rgba(0,229,192,.4)';});
+  thBtn.addEventListener('mouseleave',function(){thBtn.style.background='rgba(0,229,192,.06)';thBtn.style.borderColor='rgba(0,229,192,.25)';});
+  thBtn.addEventListener('click',function(){
+    var msg='I need help thinking through a decision. Path A: '+(data.pathA&&data.pathA.name||'Option A')+'. Path B: '+(data.pathB&&data.pathB.name||'Option B')+'.'+(data.verdictReason?' The analysis suggests: '+data.verdictReason:'');
+    S.th.msgs.push({r:'u',t:msg});
+    go('therapist');
+  });
+  container.appendChild(thBtn);
 }
 
 
