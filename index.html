@@ -314,6 +314,12 @@ function buildUserContext(moduleId){
       parts.push('[RECENT ACTIVITY]\n'+logStr);
     }
   }
+  // Journal insights
+  var jInsights=(S.user&&S.user.journalInsights)||[];
+  if(jInsights.length){
+    var jStr=jInsights.slice(-4).map(function(j){return j.insight;}).join(' | ');
+    parts.push('[JOURNAL INSIGHTS]\n'+jStr);
+  }
   // Active data sources
   if(S.dataSources&&Object.keys(S.dataSources).length){
     var activeSrc=Object.entries(S.dataSources).filter(function(kv){return kv[1];}).map(function(kv){return kv[0];});
@@ -598,6 +604,12 @@ function LoginPage(){
       if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
       if(stored.log)S.log=stored.log;
       if(stored.dataSources)S.dataSources=stored.dataSources;
+      if(stored.journalEntries&&stored.journalEntries.length){
+        try{
+          var existingJ=JSON.parse(localStorage.getItem('aevora_journal')||'[]');
+          if(!existingJ.length)localStorage.setItem('aevora_journal',JSON.stringify(stored.journalEntries));
+        }catch(e){}
+      }
       go('home');
     } else if(stored&&stored.email.toLowerCase()===email.toLowerCase()){
       errMsg.textContent='Incorrect password. Try again or create a new account.';
@@ -1522,7 +1534,7 @@ function ESP1(){
     const rep=await safeAI(S.e1.msgs,sys,function(){inp.focus();});
     if(!rep){sd();busy=false;sb.disabled=false;inp.disabled=false;return;}
     sd();S.e1.msgs.push({role:'assistant',content:rep});msg('a',rep);
-    busy=false;sb.disabled=false;inp.disabled=false;inp.focus();
+    busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;inp.focus();
     if(n>=3){S.e1.done=true;cb.style.display='block';}
   }
   sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
@@ -2034,28 +2046,33 @@ function Therapist(){
   const sfTxt=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.2)',letterSpacing:'.03em',lineHeight:'1.5'}});
   sfTxt.textContent='Aevora supports reflection, not therapy. In crisis, call 988 (US) or your local emergency line.';
   safeFooter.appendChild(sfTxt);w.appendChild(safeFooter);
-  const ft=h('div',{css:{padding:'14px 20px',borderTop:`1px solid ${C.bo}`,display:'flex',gap:'8px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.85)',backdropFilter:'blur(12px)'}});
+  const ft=h('div',{css:{padding:'14px 20px',borderTop:`1px solid ${C.bo}`,display:'flex',gap:'8px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.85)',backdropFilter:'blur(12px)',alignItems:'center'}});
   const inp=h('input',{cls:'av-in',placeholder:t('th_placeholder'),css:{flex:'1'}});
-  const sb=h('button',{cls:'av-btn',css:{flexShrink:'0',padding:'12px 18px'}},'↑');
+  const sb=h('button',{css:{flexShrink:'0',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+TEAL+',#00B4A0)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 12px rgba(0,229,192,.25)'}});
+  sb.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+  sb.addEventListener('mouseenter',function(){if(!sb.disabled){sb.style.transform='scale(1.08)';sb.style.boxShadow='0 4px 18px rgba(0,229,192,.4)';}});
+  sb.addEventListener('mouseleave',function(){sb.style.transform='scale(1)';sb.style.boxShadow='0 2px 12px rgba(0,229,192,.25)';});
+  sb.addEventListener('mousedown',function(){sb.style.transform='scale(0.95)';});
+  sb.addEventListener('mouseup',function(){sb.style.transform='scale(1.08)';});
   const mic=mkMic(inp);
   ft.appendChild(inp);if(mic)ft.appendChild(mic);ft.appendChild(sb);w.appendChild(ft);
   async function send(){
     const t=inp.value.trim();if(!t||busy)return;
-    inp.value='';busy=true;sb.disabled=true;inp.disabled=true;msg('u',t);
+    inp.value='';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',t);
     const ctx=buildUserContext('therapist');
     const sys=`You are Aevora's AI Therapist — deeply empathetic, trauma-informed, compassionate. Be warm, therapeutic. Use reflective listening and gentle reframing. Keep responses 3-5 sentences. Poetic but grounded. End with a gentle question. If crisis detected, gently mention 988.${ctx}`;
     S.th.msgs.push({r:'u',t});st();
     // Check for crisis before calling AI
     const crisisCheck=checkCrisis(t);
     if(crisisCheck.crisis){
-      sd();busy=false;sb.disabled=false;inp.disabled=false;
+      sd();busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;
       showCrisisModal(function(){inp.focus();});
       return;
     }
     if(crisisCheck.distress){showDistressBanner(md);}
     const rep=await safeAI(S.th.msgs.map(m=>({role:m.r==='u'?'user':'assistant',content:m.t})),sys,function(){inp.focus();});
     if(!rep){sd();busy=false;sb.disabled=false;inp.disabled=false;showRetryBanner(md,function(){inp.value=S.th.msgs.filter(m=>m.r==='u').pop()?.t||'';send();});return;}
-    sd();S.th.msgs.push({r:'a',t:rep});msg('a',rep);busy=false;sb.disabled=false;inp.disabled=false;inp.focus();
+    sd();S.th.msgs.push({r:'a',t:rep});msg('a',rep);busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;inp.focus();
     logSession('therapist','Therapy session: '+t.substring(0,100),[],{});
     var uCount=S.th.msgs.filter(function(m){return m.r==='u';}).length;
     if(uCount>0&&uCount%5===0){extractTherapistInsights();}
@@ -2604,6 +2621,22 @@ function PL(){
   const simulateInn=plTabContents[0];
 
   const pb=espBanner();if(pb)simulateInn.appendChild(pb);
+
+  // History count badge for simulate tab
+  (function(){
+    var sc=getSims().length;
+    if(!sc)return;
+    var simHint=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',padding:'8px 12px',borderRadius:'10px',background:'rgba(242,201,76,.05)',border:'1px solid rgba(242,201,76,.12)',cursor:'pointer'}});
+    var simHintTxt=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(242,201,76,.7)'}});
+    simHintTxt.textContent=sc+' past '+(sc===1?'simulation':'simulations')+'  ↓';
+    simHint.appendChild(simHintTxt);
+    simHint.addEventListener('click',function(){
+      var sec=simulateInn.querySelector('.sim-hist');
+      if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+    simulateInn.appendChild(simHint);
+  })();
+
   const ow=h('div',{css:{textAlign:'center',marginBottom:'16px'}});ow.appendChild(orb(44,C.gd));simulateInn.appendChild(ow);
   const sb=h('button',{cls:'av-btn av-solid',css:{width:'100%',padding:'14px',fontSize:'16px',marginTop:'20px'}},t('pl_simulate'));
 
@@ -2861,7 +2894,7 @@ function PL(){
     const sims=getSims();
     if(!sims.length)return;
     const pastDiv=h('div',{cls:'sim-hist',css:{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid rgba(255,255,255,.07)'}});
-    pastDiv.appendChild(h('p',{css:{color:C.mu,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'14px',fontFamily:CR}},t('pl_past')));
+    pastDiv.appendChild(h('p',{css:{color:GOLD,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'14px',fontFamily:CR}},t('pl_past')));
     sims.slice(0,10).forEach(function(sim){
       const card=h('div',{css:{background:'rgba(26,16,48,0.7)',border:'1px solid '+C.bo,borderRadius:'10px',padding:'14px',marginBottom:'10px',cursor:'pointer',transition:'all .2s'}});
       card.addEventListener('mouseenter',function(){card.style.borderColor=C.tb;card.style.background='rgba(26,16,48,0.95)';});
@@ -2997,7 +3030,7 @@ function ModulesPage(){
 // ── JOURNAL STORAGE HELPERS
 function getJournalEntries(){try{return JSON.parse(localStorage.getItem('aevora_journal')||'[]');}catch{return[];}}
 function saveJournalEntry(entry){
-  try{const entries=getJournalEntries();entries.unshift(entry);if(entries.length>200)entries.length=200;localStorage.setItem('aevora_journal',JSON.stringify(entries));}catch{}
+  try{const entries=getJournalEntries();entries.unshift(entry);if(entries.length>200)entries.length=200;localStorage.setItem('aevora_journal',JSON.stringify(entries));if(S.user){S.user.journalEntries=entries.slice(0,50);saveUser(S.user);}}catch{}
   logSession('journal','Journal entry: '+(entry.text||'').substring(0,100),['journal'],{});
 }
 function fmtJournalDate(ts){
@@ -3108,9 +3141,9 @@ function NewEntryPage(onBack){
 
   // Header
   const hdr=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'20px'}});
-  const backBtn=h('button',{cls:'av-btn',css:{padding:'6px 14px',fontSize:'13px'},on:{click:onBack}});backBtn.textContent='← Back';
+  hdr.appendChild(mkBackBtn('Journal',onBack));
   const saveBtn=h('button',{cls:'av-btn av-solid',css:{padding:'7px 18px',fontSize:'13px'},on:{click:saveEntry}});saveBtn.textContent='Save';
-  hdr.appendChild(backBtn);hdr.appendChild(saveBtn);inn.appendChild(hdr);
+  hdr.appendChild(saveBtn);inn.appendChild(hdr);
 
   // Mood selector
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.4)',marginBottom:'10px'}},'How are you feeling?'));
@@ -3217,7 +3250,7 @@ function EntryDetailPage(entry,idx,onBack){
   scrl.appendChild(inn);
 
   const hdr=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'20px'}});
-  const backBtn=h('button',{cls:'av-btn',css:{padding:'6px 14px',fontSize:'13px'},on:{click:onBack}});backBtn.textContent='← Journal';
+  const backBtn=mkBackBtn('Journal',onBack);
   const delBtn=h('button',{css:{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',color:'#F87171',fontFamily:CR,fontSize:'12px',padding:'6px 12px',borderRadius:'6px',cursor:'pointer'},on:{click:function(){
     if(confirm('Delete this entry?')){
       const entries=getJournalEntries();entries.splice(idx,1);
@@ -3888,6 +3921,20 @@ function OnboardingPage(){
 
 // ── Parallel Lives Analyse tab content builder
 function buildPLAnalyseTab(analyseInn){
+  // History count badge — tapping scrolls to history
+  var histCount=(S.pl&&S.pl.analyses&&S.pl.analyses.length)||0;
+  if(!histCount){try{var _old=JSON.parse(localStorage.getItem('aevora_regret')||'[]');histCount=_old.length;}catch(e){}}
+  if(histCount>0){
+    var hintBar=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',padding:'8px 12px',borderRadius:'10px',background:'rgba(255,107,107,.05)',border:'1px solid rgba(255,107,107,.12)',cursor:'pointer'}});
+    var hintTxt=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,107,107,.7)'}});
+    hintTxt.textContent=histCount+' past '+(histCount===1?'analysis':'analyses')+'  ↓';
+    hintBar.appendChild(hintTxt);
+    hintBar.addEventListener('click',function(){
+      var sec=analyseInn.querySelector('.hist-section');
+      if(sec)sec.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+    analyseInn.appendChild(hintBar);
+  }
   var DOMAINS=[
     {id:'career',label:'Career',ico:'💼'},
     {id:'relationships',label:'Relationships',ico:'💛'},
@@ -4006,23 +4053,62 @@ function buildPLAnalyseTab(analyseInn){
     }
     aBtn.textContent='Analysing...';aBtn.disabled=true;
     var ctx=buildUserContext('parallellives_analyse');
-    var sys='You are Aevoras Regret Minimizer — a deeply wise, data-driven advisor. Analyse the two paths the user is facing and return ONLY valid JSON (no markdown) with this exact schema: { "pathA": { "name": string (short label for Path A), "regretScore": number 0-100 (probability of future regret), "topRisk": string (1 sentence — biggest risk of this path), "regretWindow": string (when regret would likely peak, e.g. "6-18 months" or "3-5 years") }, "pathB": { "name": string, "regretScore": number 0-100, "topRisk": string, "regretWindow": string }, "verdict": "A" or "B" (which path has lower regret risk), "verdictReason": string (2 sentences — why this path wins, referencing user values and context), "keyFactors": [ { "factor": string, "favoursPath": "A" or "B", "weight": "High" or "Medium" or "Low" } ] (exactly 3 factors driving the scores), "microPlan": [ { "step": string (label e.g. "This week"), "action": string, "why": string } ] (exactly 3 steps to move forward on the recommended path), "watchOut": string (single most important risk to watch regardless of chosen path) }. Be specific, not generic. Reference the user values, fears, and context to make it feel personal.'+ctx;
-    var rep=await ai([{role:'user',content:'Domains: '+(selDomains.length?selDomains.join(', '):'general')+'\nTime horizon: '+selHorizon+'\nPath A: '+pathATa.value+'\nPath B: '+pathBTa.value+'\nWhat makes this difficult: '+diffTa.value}],sys);
+    var sys='You are Aevoras Regret Minimization Engine. Return ONLY valid JSON, no markdown. Schema: {"pathA":{"name":string,"regretScore":0-100,"regretExplanation":string,"topRisk":string,"regretWindow":string},"pathB":{"name":string,"regretScore":0-100,"regretExplanation":string,"topRisk":string,"regretWindow":string},"verdict":"A"or"B","verdictReason":string,"crossroadsInsight":string,"monteCarlo":{"pathA":[n,n,n,n],"pathB":[n,n,n,n]},"valuesAlignment":[{"value":string,"pathA":"aligns"or"conflicts"or"neutral","pathB":"aligns"or"conflicts"or"neutral"}],"emotionalArc":{"pathA":[string,string,string],"pathB":[string,string,string]},"keyFactors":[{"factor":string,"favoursPath":"A"or"B","weight":"High"or"Medium"or"Low"}],"microPlan":[{"step":string,"action":string,"why":string}],"watchOut":string}. monteCarlo=regret% at 1yr/3yr/5yr/10yr. valuesAlignment=3 values. emotionalArc=emotion at 6mo/2yr/horizon. keyFactors=3. microPlan=3. Be specific and personal.'+ctx;
+    var rep=await ai([{role:'user',content:'Domains: '+(selDomains.length?selDomains.join(', '):'general')+'\nTime horizon: '+selHorizon+'\nPath A: '+pathATa.value+'\nPath B: '+pathBTa.value+'\nWhat makes this difficult: '+diffTa.value}],sys,2,{tokens:2000});
     aBtn.textContent='Analyse My Decision';aBtn.disabled=false;
-    if(!rep){aResults.innerHTML='';var err=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,107,107,.7)',padding:'12px 0',textAlign:'center'}});err.textContent='Could not complete analysis — please try again.';aResults.appendChild(err);return;}
+    if(!rep||rep.startsWith('__ERR__')){
+      aResults.innerHTML='';
+      var errBox=h('div',{css:{textAlign:'center',padding:'24px 16px'}});
+      errBox.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,107,107,.7)',marginBottom:'12px'}},'Analysis could not complete — please check your API key or try again.'));
+      var retryBtn=h('button',{css:{padding:'10px 24px',borderRadius:'20px',border:'1px solid rgba(255,107,107,.4)',background:'rgba(255,107,107,.08)',color:'#FF6B6B',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});
+      retryBtn.textContent='Try Again';
+      retryBtn.addEventListener('click',function(){aResults.innerHTML='';aBtn.click();});
+      errBox.appendChild(retryBtn);
+      aResults.appendChild(errBox);
+      return;
+    }
     var data={};
     try{data=JSON.parse(rep.replace(/```json|```/g,'').trim());}
-    catch(e){data={pathA:{name:pathATa.value.substring(0,30),regretScore:60,topRisk:'',regretWindow:''},pathB:{name:pathBTa.value.substring(0,30),regretScore:40,topRisk:'',regretWindow:''},verdict:'B',verdictReason:rep,keyFactors:[],microPlan:[],watchOut:''};}
+    catch(e){
+      aResults.innerHTML='';
+      var errBox2=h('div',{css:{textAlign:'center',padding:'24px 16px'}});
+      errBox2.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,107,107,.7)',marginBottom:'12px'}},'The analysis returned an unexpected format — please try again.'));
+      var retryBtn2=h('button',{css:{padding:'10px 24px',borderRadius:'20px',border:'1px solid rgba(255,107,107,.4)',background:'rgba(255,107,107,.08)',color:'#FF6B6B',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});
+      retryBtn2.textContent='Try Again';retryBtn2.addEventListener('click',function(){aResults.innerHTML='';aBtn.click();});
+      errBox2.appendChild(retryBtn2);aResults.appendChild(errBox2);
+      return;
+    }
     if(!S.pl)S.pl={};if(!S.pl.analyses)S.pl.analyses=[];
     S.pl.analyses.unshift({ts:Date.now(),domains:selDomains,horizon:selHorizon,pathA:pathATa.value.substring(0,80),pathB:pathBTa.value.substring(0,80),data:data});
     if(S.pl.analyses.length>20)S.pl.analyses.length=20;
     try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}
     savePlan({ts:Date.now(),domain:selDomains.length?selDomains.join(', '):'general',decision:(pathATa.value+' vs '+pathBTa.value).substring(0,80),data:data});
     logSession('parallellives_analyse','Decision: '+pathATa.value.substring(0,50)+' vs '+pathBTa.value.substring(0,50),selDomains,{verdict:data.verdict,pathAScore:(data.pathA||{}).regretScore,pathBScore:(data.pathB||{}).regretScore});
+    logSession('parallellives_analyse','Decision: '+pathATa.value.substring(0,50)+' vs '+pathBTa.value.substring(0,50),selDomains,{verdict:data.verdict,pathAScore:(data.pathA||{}).regretScore,pathBScore:(data.pathB||{}).regretScore});
     S.pl.aRes={ts:Date.now(),pathA:pathATa.value,pathB:pathBTa.value,domains:selDomains,horizon:selHorizon,data:data};
     S.pl.step='analyseResult';
     go('parallellives');
   });
+
+  // Re-run full AI prompt on a past analysis to enrich it with new fields
+  async function enrichAnalysis(idx, card){
+    var p=S.pl.analyses[idx];
+    if(!p)return;
+    card.style.opacity='0.5';
+    var lbl=card.querySelector('.enrich-btn');
+    if(lbl){lbl.textContent='Enriching...';}
+    var ctx=buildUserContext('parallellives_analyse');
+    var sys='You are Aevoras Regret Minimization Engine. Return ONLY valid JSON, no markdown. Schema: {"pathA":{"name":string,"regretScore":0-100,"regretExplanation":string,"topRisk":string,"regretWindow":string},"pathB":{"name":string,"regretScore":0-100,"regretExplanation":string,"topRisk":string,"regretWindow":string},"verdict":"A"or"B","verdictReason":string,"crossroadsInsight":string,"monteCarlo":{"pathA":[n,n,n,n],"pathB":[n,n,n,n]},"valuesAlignment":[{"value":string,"pathA":"aligns"or"conflicts"or"neutral","pathB":"aligns"or"conflicts"or"neutral"}],"emotionalArc":{"pathA":[string,string,string],"pathB":[string,string,string]},"keyFactors":[{"factor":string,"favoursPath":"A"or"B","weight":"High"or"Medium"or"Low"}],"microPlan":[{"step":string,"action":string,"why":string}],"watchOut":string}. monteCarlo=regret% at 1yr/3yr/5yr/10yr. valuesAlignment=3 values. emotionalArc=emotion at 6mo/2yr/horizon. keyFactors=3. microPlan=3.'+ctx;
+    var rep=await ai([{role:'user',content:'Domains: '+(p.domains&&p.domains.length?p.domains.join(', '):'general')+'\nTime horizon: '+(p.horizon||'5yr')+'\nPath A: '+(p.pathA||'')+'\nPath B: '+(p.pathB||'')}],sys,2,{tokens:2000});
+    card.style.opacity='1';
+    if(!rep||rep.startsWith('__ERR__')){if(lbl){lbl.textContent='Enrich ✦';}return;}
+    try{
+      var data=JSON.parse(rep.replace(/```json|```/g,'').trim());
+      S.pl.analyses[idx].data=data;
+      try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}
+      renderHistory();
+    }catch(e){if(lbl){lbl.textContent='Enrich ✦';}}
+  }
 
   function renderHistory(){
     var prev=analyseInn.querySelector('.hist-section');
@@ -4040,7 +4126,7 @@ function buildPLAnalyseTab(analyseInn){
     if(!analyses.length)return;
     var sec=h('div',{cls:'hist-section'});
     sec.appendChild(h('div',{css:{height:'1px',background:'rgba(255,255,255,.06)',margin:'20px 0 14px'}}));
-    sec.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Previous Analyses'));
+    sec.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,107,107,.6)',marginBottom:'10px',marginTop:'4px'}},'Previous Analyses'));
     analyses.slice(0,5).forEach(function(p){
       var d=p.data||{};
       var pA=d.pathA||{};var pB=d.pathB||{};
@@ -4057,7 +4143,16 @@ function buildPLAnalyseTab(analyseInn){
       var dom=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});
       dom.textContent=(p.domains&&p.domains.length?p.domains.slice(0,2).join(', '):'general')+(p.horizon?' · '+p.horizon:'');
       var dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});dt.textContent=fmtJournalDate(p.ts);
-      bot.appendChild(dom);bot.appendChild(dt);c.appendChild(bot);
+      bot.appendChild(dom);bot.appendChild(dt);
+      // Enrich button for old analyses missing new fields
+      var idx=(function(pp){return analyses.indexOf(pp);})(p);
+      if(!d.crossroadsInsight){
+        var eb=h('button',{cls:'enrich-btn',css:{fontFamily:CR,fontSize:'10px',color:GOLD,background:'rgba(242,201,76,.08)',border:'1px solid rgba(242,201,76,.25)',borderRadius:'8px',padding:'2px 8px',cursor:'pointer',flexShrink:'0',marginLeft:'6px'}});
+        eb.textContent='Enrich ✦';
+        eb.addEventListener('click',function(e){e.stopPropagation();enrichAnalysis(idx,c);});
+        bot.appendChild(eb);
+      }
+      c.appendChild(bot);
       sec.appendChild(c);
     });
     analyseInn.appendChild(sec);
@@ -4106,6 +4201,36 @@ function renderAnalyseResult(entry, onBack, isNew){
     inn.appendChild(meta);
   }
 
+  // ── Enrich banner for old analyses missing new fields
+  if(!data.crossroadsInsight){
+    var enrichBanner=h('div',{css:{background:'rgba(242,201,76,.07)',border:'1px solid rgba(242,201,76,.2)',borderRadius:'12px',padding:'12px 16px',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px'}});
+    var ebTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(242,201,76,.8)',flex:'1',lineHeight:'1.5'}});
+    ebTxt.textContent='This analysis was saved before the rich report was introduced.';
+    var ebBtn=h('button',{css:{fontFamily:CR,fontSize:'11px',color:GOLD,background:'rgba(242,201,76,.12)',border:'1px solid rgba(242,201,76,.3)',borderRadius:'8px',padding:'6px 14px',cursor:'pointer',flexShrink:'0',transition:'all .2s'}});
+    ebBtn.textContent='Re-analyse ✦';
+    ebBtn.addEventListener('click',async function(){
+      ebBtn.textContent='Analysing...';ebBtn.disabled=true;enrichBanner.style.opacity='0.5';
+      var ctx=buildUserContext('parallellives_analyse');
+      var sys='You are Aevoras Regret Minimization Engine. Return ONLY valid JSON, no markdown. Schema: {"pathA":{"name":string,"regretScore":0-100,"regretExplanation":string,"topRisk":string,"regretWindow":string},"pathB":{"name":string,"regretScore":0-100,"regretExplanation":string,"topRisk":string,"regretWindow":string},"verdict":"A"or"B","verdictReason":string,"crossroadsInsight":string,"monteCarlo":{"pathA":[n,n,n,n],"pathB":[n,n,n,n]},"valuesAlignment":[{"value":string,"pathA":"aligns"or"conflicts"or"neutral","pathB":"aligns"or"conflicts"or"neutral"}],"emotionalArc":{"pathA":[string,string,string],"pathB":[string,string,string]},"keyFactors":[{"factor":string,"favoursPath":"A"or"B","weight":"High"or"Medium"or"Low"}],"microPlan":[{"step":string,"action":string,"why":string}],"watchOut":string}. monteCarlo=regret% at 1yr/3yr/5yr/10yr. valuesAlignment=3 values. emotionalArc=emotion at 6mo/2yr/horizon. keyFactors=3. microPlan=3.'+ctx;
+      var rep=await ai([{role:'user',content:'Domains: '+(entry.domains&&entry.domains.length?entry.domains.join(', '):'general')+'\nTime horizon: '+(entry.horizon||'5yr')+'\nPath A: '+(entry.pathA||'')+'\nPath B: '+(entry.pathB||'')}],sys,2,{tokens:2000});
+      if(!rep||rep.startsWith('__ERR__')){ebBtn.textContent='Re-analyse ✦';ebBtn.disabled=false;enrichBanner.style.opacity='1';return;}
+      try{
+        var newData=JSON.parse(rep.replace(/```json|```/g,'').trim());
+        // Update saved entry
+        if(S.pl&&S.pl.analyses){
+          var found=S.pl.analyses.find(function(a){return a.ts===entry.ts;});
+          if(found){found.data=newData;try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}}
+        }
+        // Re-render result in place
+        enrichBanner.remove();
+        resultContainer.innerHTML='';
+        renderAResult(newData,resultContainer);
+      }catch(e){ebBtn.textContent='Re-analyse ✦';ebBtn.disabled=false;enrichBanner.style.opacity='1';}
+    });
+    enrichBanner.appendChild(ebTxt);enrichBanner.appendChild(ebBtn);
+    inn.appendChild(enrichBanner);
+  }
+
   // ── Full result using renderAResult logic inline
   var resultContainer=h('div',{});
   inn.appendChild(resultContainer);
@@ -4136,29 +4261,120 @@ function renderAResult(data,container){
   container.innerHTML='';
   var _atag=mkPersonalisedTag();if(_atag)container.appendChild(_atag);
 
-  var pA=data.pathA||{name:'Path A',regretScore:data.regretScore||50,topRisk:'',regretWindow:''};
-  var pB=data.pathB||{name:'Path B',regretScore:data.changeScore||50,topRisk:'',regretWindow:''};
+  var pA=data.pathA||{name:'Path A',regretScore:data.regretScore||50,regretExplanation:'',topRisk:'',regretWindow:''};
+  var pB=data.pathB||{name:'Path B',regretScore:data.changeScore||50,regretExplanation:'',topRisk:'',regretWindow:''};
   var winner=data.verdict==='A'?'A':'B';
-  var winCol='#34D399';
+  var loser=winner==='A'?'B':'A';
+  var winPath=winner==='A'?pA:pB;
+  var losePath=winner==='A'?pB:pA;
+  var colA='#60A5FA',colB='#34D399';
+  var done=data._done||[false,false,false];
 
-  // ── Score cards with arc gauges
+  // ── 1. Crossroads insight
+  if(data.crossroadsInsight){
+    var ci=h('div',{css:{textAlign:'center',padding:'18px 4px 20px',marginBottom:'4px'}});
+    var ciQ=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'16px',color:GOLD,lineHeight:'1.7',letterSpacing:'.01em'}});
+    ciQ.textContent='“'+data.crossroadsInsight+'”';
+    ci.appendChild(ciQ);
+    container.appendChild(ci);
+  }
+
+  // ── 2. Score cards with arc gauges + Monte-Carlo framing
   var sRow=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'14px'}});
-  [{path:'A',d:pA,col:'#60A5FA'},{path:'B',d:pB,col:'#34D399'}].forEach(function(s){
+  [{path:'A',d:pA,col:colA},{path:'B',d:pB,col:colB}].forEach(function(s){
     var isWin=winner===s.path;
-    var card=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid '+(isWin?s.col+'40':'rgba(255,255,255,.07)'),borderRadius:'14px',padding:'14px 10px',textAlign:'center',position:'relative',boxShadow:isWin?'0 0 16px '+s.col+'18':'none'}});
+    var mc=Math.round(s.d.regretScore/10);
+    var card=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid '+(isWin?s.col+'40':'rgba(255,255,255,.07)'),borderRadius:'14px',padding:'14px 10px',textAlign:'center',position:'relative',boxShadow:isWin?'0 0 20px '+s.col+'15':'none'}});
     if(isWin){var wb=h('div',{css:{position:'absolute',top:'-10px',left:'50%',transform:'translateX(-50%)',background:s.col,borderRadius:'10px',padding:'2px 10px',fontFamily:CR,fontSize:'9px',letterSpacing:'.1em',textTransform:'uppercase',color:'#0D0B23',fontWeight:'700',whiteSpace:'nowrap'}});wb.textContent='Recommended';card.appendChild(wb);}
     card.appendChild(mkArcGauge(s.d.regretScore,s.col));
-    var sc=h('p',{css:{fontFamily:PF,fontSize:'28px',fontWeight:'700',color:s.col,margin:'-4px 0 2px'}});sc.textContent=s.d.regretScore+'%';
-    var nm=h('p',{css:{fontFamily:CR,fontSize:'11px',fontWeight:'600',color:'rgba(255,255,255,.75)',marginBottom:'4px'}});nm.textContent=s.d.name||('Path '+s.path);
-    var rl=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.35)',lineHeight:'1.4',marginBottom:s.d.regretWindow?'4px':'0'}});rl.textContent='regret risk';
-    card.appendChild(sc);card.appendChild(nm);card.appendChild(rl);
-    if(s.d.regretWindow){var rw=h('div',{css:{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 8px',borderRadius:'10px',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',marginTop:'2px'}});rw.appendChild(h('span',{css:{fontSize:'9px'}},'⏱'));rw.appendChild(h('span',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(255,255,255,.4)'}},s.d.regretWindow));card.appendChild(rw);}
-    if(s.d.topRisk){var tr=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.3)',lineHeight:'1.4',marginTop:'6px',padding:'0 2px'}});tr.textContent=s.d.topRisk;card.appendChild(tr);}
+    var sc=h('p',{css:{fontFamily:PF,fontSize:'26px',fontWeight:'700',color:s.col,margin:'-4px 0 1px'}});sc.textContent=s.d.regretScore+'%';
+    var nm=h('p',{css:{fontFamily:CR,fontSize:'11px',fontWeight:'600',color:'rgba(255,255,255,.75)',marginBottom:'3px'}});nm.textContent=s.d.name||('Path '+s.path);
+    var rl=h('p',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(255,255,255,.3)',marginBottom:'4px'}});rl.textContent='regret risk';
+    var mcl=h('p',{css:{fontFamily:CR,fontSize:'9px',color:s.col,opacity:'.7',marginBottom:'4px'}});mcl.textContent=mc+' in 10 futures';
+    card.appendChild(sc);card.appendChild(nm);card.appendChild(rl);card.appendChild(mcl);
+    if(s.d.regretWindow){var rw=h('div',{css:{display:'inline-flex',alignItems:'center',gap:'3px',padding:'2px 7px',borderRadius:'8px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.07)',marginBottom:'4px'}});rw.appendChild(h('span',{css:{fontSize:'8px'}},'⏱'));rw.appendChild(h('span',{css:{fontFamily:CR,fontSize:'8px',color:'rgba(255,255,255,.35)'}},s.d.regretWindow));card.appendChild(rw);}
+    if(s.d.regretExplanation){var re=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.4)',lineHeight:'1.5',marginTop:'6px',padding:'0 4px',textAlign:'left'}});re.textContent=s.d.regretExplanation;card.appendChild(re);}
     sRow.appendChild(card);
   });
   container.appendChild(sRow);
 
-  // ── Verdict banner
+  // ── 3. Regret probability curve (Monte-Carlo line chart)
+  if(data.monteCarlo&&data.monteCarlo.pathA&&data.monteCarlo.pathB){
+    var mc=data.monteCarlo;
+    var chartWrap=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'14px',padding:'16px 14px',marginBottom:'14px'}});
+    chartWrap.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'12px'}},'Regret Probability Over Time'));
+    var W=320,H=120,PL=28,PR=12,PT=10,PB=24;
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 '+(W)+' '+(H));svg.setAttribute('width','100%');svg.setAttribute('height',H);
+    var labels=['1yr','3yr','5yr','10yr'];
+    var allVals=mc.pathA.concat(mc.pathB);
+    var maxV=Math.max(100,Math.max.apply(null,allVals));
+    function px(i){return PL+(i/(labels.length-1))*(W-PL-PR);}
+    function py(v){return PT+(1-v/maxV)*(H-PT-PB);}
+    // Grid lines
+    [0,25,50,75,100].forEach(function(v){
+      var y=py(v);
+      var gl=document.createElementNS('http://www.w3.org/2000/svg','line');
+      gl.setAttribute('x1',PL);gl.setAttribute('x2',W-PR);gl.setAttribute('y1',y);gl.setAttribute('y2',y);
+      gl.setAttribute('stroke','rgba(255,255,255,.05)');gl.setAttribute('stroke-width','1');
+      svg.appendChild(gl);
+      var lt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      lt.setAttribute('x',PL-4);lt.setAttribute('y',y+3);lt.setAttribute('text-anchor','end');
+      lt.setAttribute('fill','rgba(255,255,255,.2)');lt.setAttribute('font-size','7');lt.textContent=v+'%';
+      svg.appendChild(lt);
+    });
+    // X labels
+    labels.forEach(function(l,i){
+      var xt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      xt.setAttribute('x',px(i));xt.setAttribute('y',H-4);xt.setAttribute('text-anchor','middle');
+      xt.setAttribute('fill','rgba(255,255,255,.25)');xt.setAttribute('font-size','7');xt.textContent=l;
+      svg.appendChild(xt);
+    });
+    // Draw both path lines
+    [[mc.pathA,colA,'A'],[mc.pathB,colB,'B']].forEach(function(pl2){
+      var vals=pl2[0],col=pl2[1],lbl=pl2[2];
+      // Area fill
+      var areaD='M'+px(0)+' '+py(0)+'L'+vals.map(function(v,i){return px(i)+' '+py(v);}).join('L')+'L'+px(vals.length-1)+' '+py(0)+'Z';
+      var area=document.createElementNS('http://www.w3.org/2000/svg','path');
+      area.setAttribute('d',areaD);area.setAttribute('fill',col);area.setAttribute('fill-opacity','0.06');
+      svg.appendChild(area);
+      // Line
+      var lineD='M'+vals.map(function(v,i){return px(i)+' '+py(v);}).join('L');
+      var line=document.createElementNS('http://www.w3.org/2000/svg','path');
+      line.setAttribute('d',lineD);line.setAttribute('fill','none');line.setAttribute('stroke',col);
+      line.setAttribute('stroke-width','2');line.setAttribute('stroke-linecap','round');line.setAttribute('stroke-linejoin','round');
+      svg.appendChild(line);
+      // Dots + values
+      vals.forEach(function(v,i){
+        var dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        dot.setAttribute('cx',px(i));dot.setAttribute('cy',py(v));dot.setAttribute('r','3');
+        dot.setAttribute('fill',col);dot.setAttribute('stroke','#0D0B23');dot.setAttribute('stroke-width','1.5');
+        svg.appendChild(dot);
+        var vt=document.createElementNS('http://www.w3.org/2000/svg','text');
+        vt.setAttribute('x',px(i));vt.setAttribute('y',py(v)-6);vt.setAttribute('text-anchor','middle');
+        vt.setAttribute('fill',col);vt.setAttribute('font-size','7');vt.setAttribute('font-weight','600');vt.textContent=v+'%';
+        svg.appendChild(vt);
+      });
+      // Path label at end
+      var lastX=px(vals.length-1)+5,lastY=py(vals[vals.length-1]);
+      var lt2=document.createElementNS('http://www.w3.org/2000/svg','text');
+      lt2.setAttribute('x',lastX);lt2.setAttribute('y',lastY+3);
+      lt2.setAttribute('fill',col);lt2.setAttribute('font-size','8');lt2.setAttribute('font-weight','700');lt2.textContent='';
+      svg.appendChild(lt2);
+    });
+    // Legend
+    var leg=h('div',{css:{display:'flex',gap:'14px',justifyContent:'center',marginTop:'8px'}});
+    [{col:colA,lbl:pA.name||'Path A'},{col:colB,lbl:pB.name||'Path B'}].forEach(function(l){
+      var li=h('div',{css:{display:'flex',alignItems:'center',gap:'5px'}});
+      var dot=h('div',{css:{width:'8px',height:'8px',borderRadius:'50%',background:l.col,flexShrink:'0'}});
+      var lt3=h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.45)'}});lt3.textContent=l.lbl;
+      li.appendChild(dot);li.appendChild(lt3);leg.appendChild(li);
+    });
+    chartWrap.appendChild(svg);chartWrap.appendChild(leg);
+    container.appendChild(chartWrap);
+  }
+
+  // ── 4. Verdict banner
   if(data.verdictReason){
     var vc=h('div',{css:{background:'rgba(52,211,153,.06)',border:'1px solid rgba(52,211,153,.2)',borderRadius:'12px',padding:'14px 16px',marginBottom:'14px'}});
     var vl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(52,211,153,.7)',marginBottom:'6px'}});vl.textContent='Why Path '+winner+' carries less regret';
@@ -4166,13 +4382,55 @@ function renderAResult(data,container){
     vc.appendChild(vl);vc.appendChild(vt);container.appendChild(vc);
   }
 
-  // ── Key factors
+  // ── 5. Values alignment
+  if(data.valuesAlignment&&data.valuesAlignment.length){
+    var va=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'14px'}});
+    va.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Your Values Alignment'));
+    data.valuesAlignment.forEach(function(v){
+      var row=h('div',{css:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}});
+      var vn=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.7)',flex:'1'}});vn.textContent=v.value;
+      function mkBadge(val,path,col){
+        var icon=val==='aligns'?'✓':val==='conflicts'?'✗':'—';
+        var bg=val==='aligns'?'rgba(52,211,153,.12)':val==='conflicts'?'rgba(255,107,107,.12)':'rgba(255,255,255,.05)';
+        var bc=val==='aligns'?'#34D399':val==='conflicts'?'#FF6B6B':'rgba(255,255,255,.2)';
+        var b=h('div',{css:{display:'flex',flexDirection:'column',alignItems:'center',gap:'1px',padding:'3px 8px',borderRadius:'8px',background:bg,border:'1px solid '+bc+'40',minWidth:'38px'}});
+        b.appendChild(h('span',{css:{fontFamily:CR,fontSize:'10px',color:bc,fontWeight:'700'}},icon));
+        b.appendChild(h('span',{css:{fontFamily:CR,fontSize:'8px',color:'rgba(255,255,255,.3)'}},path));
+        return b;
+      }
+      row.appendChild(vn);row.appendChild(mkBadge(v.pathA,'Path A',colA));row.appendChild(mkBadge(v.pathB,'Path B',colB));
+      va.appendChild(row);
+    });
+    container.appendChild(va);
+  }
+
+  // ── 6. Emotional arc
+  if(data.emotionalArc&&data.emotionalArc.pathA&&data.emotionalArc.pathB){
+    var ea=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'14px'}});
+    ea.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Emotional Journey'));
+    var milestones=['6 months','2 years',''+((data.monteCarlo?data.monteCarlo.pathA.length:3))+' yr horizon'];
+    [{lbl:pA.name||'Path A',arc:data.emotionalArc.pathA,col:colA},{lbl:pB.name||'Path B',arc:data.emotionalArc.pathB,col:colB}].forEach(function(p){
+      var row=h('div',{css:{display:'flex',alignItems:'flex-start',gap:'8px',marginBottom:'8px'}});
+      var nl=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.35)',width:'52px',flexShrink:'0',paddingTop:'4px'}});nl.textContent=p.lbl;
+      var pills=h('div',{css:{display:'flex',gap:'5px',flexWrap:'wrap'}});
+      (p.arc||[]).forEach(function(emotion,i){
+        var pill=h('div',{css:{display:'flex',flexDirection:'column',alignItems:'center',gap:'1px',padding:'3px 8px',borderRadius:'8px',background:'rgba(255,255,255,.04)',border:'1px solid '+p.col+'25'}});
+        pill.appendChild(h('span',{css:{fontFamily:CR,fontSize:'10px',color:p.col,fontWeight:'500'}},emotion));
+        pill.appendChild(h('span',{css:{fontFamily:CR,fontSize:'8px',color:'rgba(255,255,255,.25)'}},milestones[i]||''));
+        pills.appendChild(pill);
+      });
+      row.appendChild(nl);row.appendChild(pills);ea.appendChild(row);
+    });
+    container.appendChild(ea);
+  }
+
+  // ── 7. Key factors
   if(data.keyFactors&&data.keyFactors.length){
     var kf=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'14px'}});
-    kf.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Key Factors'));
+    kf.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'10px'}},'Key Decision Factors'));
     data.keyFactors.forEach(function(f){
       var row=h('div',{css:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px'}});
-      var wCol=f.favoursPath==='A'?'#60A5FA':'#34D399';
+      var wCol=f.favoursPath==='A'?colA:colB;
       var wb=h('span',{css:{fontFamily:CR,fontSize:'10px',padding:'2px 8px',borderRadius:'8px',background:'rgba(255,255,255,.05)',border:'1px solid '+wCol+'40',color:wCol,flexShrink:'0',whiteSpace:'nowrap'}});wb.textContent='Path '+f.favoursPath;
       var ft=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.75)',flex:'1'}});ft.textContent=f.factor;
       var wt=h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.3)',flexShrink:'0'}});wt.textContent=f.weight||'';
@@ -4181,23 +4439,33 @@ function renderAResult(data,container){
     container.appendChild(kf);
   }
 
-  // ── Micro-plan
+  // ── 8. Micro-plan with persistent completion
   if(data.microPlan&&data.microPlan.length){
     container.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'Your 3-Step Action Plan'));
     (data.microPlan||[]).forEach(function(step,i){
       var c=h('div',{css:{background:'rgba(20,13,38,.95)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'12px',padding:'12px 14px',marginBottom:'8px',display:'flex',gap:'12px',alignItems:'flex-start'}});
-      var chk=h('div',{css:{width:'22px',height:'22px',borderRadius:'6px',border:'1px solid rgba(52,211,153,.4)',background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',cursor:'pointer',marginTop:'2px',transition:'all .2s'}});
-      var done=false;
-      chk.addEventListener('click',function(){done=!done;chk.style.background=done?'#34D399':'transparent';chk.style.borderColor=done?'#34D399':'rgba(52,211,153,.4)';chk.innerHTML=done?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>':'';});
-      var t=h('div',{css:{flex:'1'}});
-      t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(52,211,153,.7)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'3px'}},step.step||'Step '+(i+1)));
-      t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.85)',fontWeight:'500',marginBottom:'3px'}},step.action||''));
-      t.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',lineHeight:'1.5'}},step.why||''));
-      c.appendChild(chk);c.appendChild(t);container.appendChild(c);
+      var isDone=done[i]||false;
+      var chk=h('div',{css:{width:'22px',height:'22px',borderRadius:'6px',border:'1px solid rgba(52,211,153,.4)',background:isDone?'#34D399':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',cursor:'pointer',marginTop:'2px',transition:'all .2s'}});
+      if(isDone)chk.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      chk.addEventListener('click',function(){
+        done[i]=!done[i];
+        chk.style.background=done[i]?'#34D399':'transparent';
+        chk.style.borderColor=done[i]?'#34D399':'rgba(52,211,153,.4)';
+        chk.innerHTML=done[i]?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>':'';
+        data._done=done;
+        if(S.pl&&S.pl.aRes&&S.pl.aRes.data)S.pl.aRes.data._done=done;
+        if(S.pl&&S.pl.analyses&&S.pl.analyses.length)S.pl.analyses[0].data._done=done;
+        try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}
+      });
+      var txt=h('div',{css:{flex:'1',opacity:isDone?'.5':'1',transition:'opacity .2s'}});
+      txt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(52,211,153,.7)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:'3px'}},step.step||'Step '+(i+1)));
+      txt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.85)',fontWeight:'500',marginBottom:'3px',textDecoration:isDone?'line-through':'none'}},step.action||''));
+      txt.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',lineHeight:'1.5'}},step.why||''));
+      c.appendChild(chk);c.appendChild(txt);container.appendChild(c);
     });
   }
 
-  // ── Watch out
+  // ── 9. Watch out
   if(data.watchOut){
     var w=h('div',{css:{background:'rgba(251,191,36,.06)',border:'1px solid rgba(251,191,36,.2)',borderRadius:'10px',padding:'12px 14px',display:'flex',gap:'10px',alignItems:'flex-start',marginBottom:'14px'}});
     w.appendChild(h('span',{css:{fontSize:'14px',flexShrink:'0'}},'⚡'));
@@ -4205,21 +4473,39 @@ function renderAResult(data,container){
     container.appendChild(w);
   }
 
-  // ── Discuss with AI Therapist
-  var thBtn=h('button',{css:{width:'100%',padding:'13px',borderRadius:'12px',border:'1px solid rgba(0,229,192,.25)',background:'rgba(0,229,192,.06)',color:TEAL,fontFamily:CR,fontSize:'13px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',marginBottom:'8px',transition:'all .2s'}});
-  thBtn.innerHTML='<span style="font-size:15px">◎</span><span>Discuss this with AI Therapist</span>';
-  thBtn.addEventListener('mouseenter',function(){thBtn.style.background='rgba(0,229,192,.12)';thBtn.style.borderColor='rgba(0,229,192,.4)';});
-  thBtn.addEventListener('mouseleave',function(){thBtn.style.background='rgba(0,229,192,.06)';thBtn.style.borderColor='rgba(0,229,192,.25)';});
-  thBtn.addEventListener('click',function(){
-    var msg='I need help thinking through a decision. Path A: '+(data.pathA&&data.pathA.name||'Option A')+'. Path B: '+(data.pathB&&data.pathB.name||'Option B')+'.'+(data.verdictReason?' The analysis suggests: '+data.verdictReason:'');
-    S.th.msgs.push({r:'u',t:msg});
-    go('therapist');
-  });
-  container.appendChild(thBtn);
+  // ── 10. Actions
+  var actRow=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'8px'}});
+  function mkActBtn(icon,label,col,onClick){
+    var b=h('button',{css:{padding:'11px 8px',borderRadius:'12px',border:'1px solid '+col+'30',background:col+'08',color:col,fontFamily:CR,fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .2s',width:'100%'}});
+    b.innerHTML='<span style="font-size:13px">'+icon+'</span><span>'+label+'</span>';
+    b.addEventListener('mouseenter',function(){b.style.background=col+'18';b.style.borderColor=col+'60';});
+    b.addEventListener('mouseleave',function(){b.style.background=col+'08';b.style.borderColor=col+'30';});
+    b.addEventListener('click',onClick);
+    return b;
+  }
+  actRow.appendChild(mkActBtn('◎','AI Therapist',TEAL,function(){
+    var msg='I need help thinking through a decision. '+( pA.name||'Path A')+' vs '+(pB.name||'Path B')+'.'+(data.verdictReason?' Analysis suggests: '+data.verdictReason:'');
+    S.th.msgs.push({r:'u',t:msg});go('therapist');
+  }));
+  actRow.appendChild(mkActBtn('◈','Simulate Path '+winner,GOLD,function(){
+    var winName=winner==='A'?(pA.name||data.pathA&&data.pathA.name||'Path A'):(pB.name||data.pathB&&data.pathB.name||'Path B');
+    S.pl.d='What if I chose: '+winName;S.pl.a='I took this path fully and committed to it.';S.pl.tab='simulate';S.pl.step='input';go('parallellives');
+  }));
+  actRow.appendChild(mkActBtn('✎','Save to Journal','#A78BFA',function(){
+    var entry='Decision Analysis: '+(pA.name||'Path A')+' vs '+(pB.name||'Path B')+'\\n\\nRecommended: Path '+winner+'\\n\\n'+( data.verdictReason||'')+'\\n\\nCrossroads insight: '+(data.crossroadsInsight||'')+'\\n\\nWatch out: '+(data.watchOut||'');
+    saveJournalEntry({ts:Date.now(),text:entry,mood:null,reflection:'',tags:['analysis','decision']});
+    go('journal');
+  }));
+  actRow.appendChild(mkActBtn('⊕','New Analysis','rgba(255,107,107,.9)',function(){
+    S.pl.step='input';S.pl.tab='analyse';S.pl.aRes=null;go('parallellives');
+  }));
+  container.appendChild(actRow);
 }
 
 
 
+// ══════════════════════════════════════════════════════
+//  TAB BAR WITH INLINE DESCRIPTION
 // ══════════════════════════════════════════════════════
 //  TAB BAR WITH INLINE DESCRIPTION
 // ══════════════════════════════════════════════════════
@@ -4580,7 +4866,7 @@ function FuturePage(){
     if(!rep){showRetryBanner(md,function(){inp.value=text;sendMsg();});busy=false;sb.disabled=false;inp.disabled=false;return;}
     msgs.push({role:'assistant',content:rep});addMsg('a',rep);
     logSession('future','Future self ('+horizon+'yr): '+text.substring(0,80),[],{horizon:horizon});
-    busy=false;sb.disabled=false;inp.disabled=false;inp.focus();
+    busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;inp.focus();
   }
 
   sb.addEventListener('click',sendMsg);
