@@ -1503,6 +1503,13 @@ function go(scr){
     const dMod=ALL_MODS.find(function(m){return m.id===targetScr;});showModuleDisclaimer(dMod?dMod.name:targetScr,function(){go(targetScr);});
     return;
   }
+  // Reset Parallel Lives to input when navigating from outside the module
+  if(scr==='parallellives'&&S.scr!=='parallellives'){
+    var detailSteps=['result','detail','analyseResult','analyseDetail','loading'];
+    if(detailSteps.includes(S.pl&&S.pl.step)){
+      S.pl.step='input';S.pl.aRes=null;S.pl.detail=null;
+    }
+  }
   S.scr=scr;
   const av=document.getElementById('av');
   av.innerHTML='';
@@ -1654,42 +1661,55 @@ function ESP2(){
 
 
 // ── DAILY JOURNEY PROMPTS (rotate by day of year)
-const DAILY_PROMPTS=[
-  {q:"What's one belief about yourself you've never questioned?",theme:"Self-Discovery"},
-  {q:"If your younger self could see you now, what would surprise them most?",theme:"Reflection"},
-  {q:"What emotion have you been avoiding lately — and why?",theme:"Emotional Honesty"},
-  {q:"What would you do differently if no one could judge you?",theme:"Authenticity"},
-  {q:"What do you keep almost saying, but never do?",theme:"Unspoken Truths"},
-  {q:"Where in your life are you settling for less than you want?",theme:"Growth"},
-  {q:"What does your body feel when you think about your biggest current fear?",theme:"Body Wisdom"},
-  {q:"Who in your life sees a version of you that you don't fully believe yet?",theme:"Identity"},
-  {q:"What childhood dream still whispers to you?",theme:"Inner Child"},
-  {q:"What would you forgive yourself for, if you allowed it?",theme:"Self-Compassion"},
-  {q:"What part of your life feels most out of alignment right now?",theme:"Alignment"},
-  {q:"What are you grateful for that you rarely acknowledge out loud?",theme:"Gratitude"},
-  {q:"What pattern keeps repeating in your relationships?",theme:"Patterns"},
-  {q:"If your life were a book, what chapter are you in right now?",theme:"Life Story"},
-  {q:"What do you need to hear from someone but haven't asked for?",theme:"Needs"},
-  {q:"What would change if you truly trusted yourself?",theme:"Self-Trust"},
-  {q:"What fear is disguised as a practical reason in your life?",theme:"Fear vs Logic"},
-  {q:"What does rest mean to you — and when did you last truly rest?",theme:"Rest"},
-  {q:"What are you becoming that you haven't named yet?",theme:"Becoming"},
-  {q:"What conversation keeps replaying in your mind?",theme:"Processing"},
-  {q:"Where do you feel most like yourself?",theme:"Authentic Self"},
-  {q:"What would you change about yesterday, if you could?",theme:"Learning"},
-  {q:"What do you want more of in your life right now?",theme:"Desire"},
-  {q:"What are you protecting yourself from by staying busy?",theme:"Avoidance"},
-  {q:"Who do you most want to become in the next year?",theme:"Vision"},
-  {q:"What small thing brought you genuine joy this week?",theme:"Joy"},
-  {q:"What truth are you aware of but not yet ready to act on?",theme:"Readiness"},
-  {q:"What does success feel like in your body, not just your mind?",theme:"Embodiment"},
-  {q:"What would you do if you knew you couldn't fail?",theme:"Courage"},
-  {q:"What part of yourself do you find hardest to share with others?",theme:"Vulnerability"},
-];
+const DAILY_PROMPTS={
+  morning:[
+    {q:"What intention would make today feel worthwhile, even if nothing else goes to plan?",theme:"Intention"},
+    {q:"What's one thing you want to do today that future-you will thank you for?",theme:"Foresight"},
+    {q:"What would you do differently this morning if you weren't afraid of wasting time?",theme:"Courage"},
+    {q:"What feeling do you want to carry with you through today?",theme:"Presence"},
+    {q:"Who do you want to be today — not what you want to do, but who?",theme:"Identity"},
+    {q:"What would you start today if you knew you couldn't fail?",theme:"Beginning"},
+    {q:"What clarity are you waking up with that you didn't have yesterday?",theme:"Growth"},
+    {q:"What's one small thing you can do this morning to honour yourself?",theme:"Self-Care"},
+  ],
+  afternoon:[
+    {q:"What decision have you been postponing that quietly drains your energy?",theme:"Clarity"},
+    {q:"How does what you're doing right now connect to who you want to become?",theme:"Alignment"},
+    {q:"What would you be doing right now if you were being completely honest about your priorities?",theme:"Honesty"},
+    {q:"What fear is disguised as a practical reason in your life?",theme:"Fear vs Logic"},
+    {q:"What does your gut say about the decision you've been overthinking?",theme:"Intuition"},
+    {q:"Where in your life are you settling for less than you want?",theme:"Growth"},
+    {q:"What pattern keeps repeating — and what is it asking you to see?",theme:"Patterns"},
+    {q:"What conversation would change everything if you finally had it?",theme:"Courage"},
+  ],
+  evening:[
+    {q:"What from today do you want to carry forward — and what are you ready to release?",theme:"Release"},
+    {q:"What emotion have you been avoiding today, and what is it trying to tell you?",theme:"Emotional Honesty"},
+    {q:"Who did you show up as today, and who do you wish you had been?",theme:"Reflection"},
+    {q:"What would you change about today if you could — and why does that matter?",theme:"Learning"},
+    {q:"What are you grateful for that you almost missed in the busyness of today?",theme:"Gratitude"},
+    {q:"What did today reveal about what you truly value?",theme:"Values"},
+    {q:"If today were a chapter in your story, what would its title be?",theme:"Life Story"},
+    {q:"What part of yourself showed up unexpectedly today?",theme:"Self-Discovery"},
+  ],
+  night:[
+    {q:"What truth are you most aware of in the quiet of this moment?",theme:"Truth"},
+    {q:"What childhood dream still whispers to you — and have you listened lately?",theme:"Inner Child"},
+    {q:"What would you forgive yourself for, if you truly allowed it tonight?",theme:"Self-Compassion"},
+    {q:"What part of yourself do you rarely let others see — and why?",theme:"Vulnerability"},
+    {q:"What are you becoming that you haven't named yet?",theme:"Becoming"},
+    {q:"What conversation keeps replaying in your mind — and what does it need from you?",theme:"Processing"},
+    {q:"What would your wisest future self tell you right now?",theme:"Wisdom"},
+    {q:"What would you do with your life if no one could ever judge you for it?",theme:"Authenticity"},
+  ],
+};
 function getDailyPrompt(){
   const d=new Date();
+  const hr=d.getHours();
+  const period=hr>=5&&hr<12?'morning':hr>=12&&hr<18?'afternoon':hr>=18&&hr<23?'evening':'night';
+  const pool=DAILY_PROMPTS[period];
   const doy=Math.floor((d-new Date(d.getFullYear(),0,0))/(1000*60*60*24));
-  return DAILY_PROMPTS[doy%DAILY_PROMPTS.length];
+  return Object.assign({},pool[doy%pool.length],{period:period});
 }
 
 function Home(){
@@ -1750,7 +1770,8 @@ function Home(){
   tjIco.textContent='✦';
   const tjTxt=h('div',{css:{flex:'1'}});
   const tjLbl=h('div',{css:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}});
-  const tjLblTxt=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.2em',textTransform:'uppercase',color:GOLD}});tjLblTxt.textContent="TODAY'S REFLECTION";
+  var _periodLabels={morning:'MORNING REFLECTION',afternoon:'AFTERNOON CHECK-IN',evening:'EVENING REFLECTION',night:'NIGHT CONTEMPLATION'};
+  const tjLblTxt=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.2em',textTransform:'uppercase',color:GOLD}});tjLblTxt.textContent=_periodLabels[dp.period]||"TODAY'S REFLECTION";
   const tjTheme=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.1em',color:'rgba(242,201,76,.5)',background:'rgba(242,201,76,.08)',border:'1px solid rgba(242,201,76,.2)',borderRadius:'10px',padding:'2px 8px'}});tjTheme.textContent=dp.theme;
   tjLbl.appendChild(tjLblTxt);tjLbl.appendChild(tjTheme);
   const tjMsg=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'16px',color:'rgba(255,255,255,.9)',lineHeight:'1.65'}});tjMsg.textContent='"'+dp.q+'"';
@@ -1858,10 +1879,12 @@ function Home(){
 
 
   const curRow=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'12px'}});
-  const curL=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:TEAL}});curL.textContent='FEATURED TODAY';
+  const curL=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:TEAL}});curL.textContent=todayLabel;
   const curAll=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.35)',fontFamily:CR,fontSize:'12px',cursor:'pointer',letterSpacing:'.05em'},on:{click:function(){go('modules');}}});
   curAll.textContent='View all →';
   curRow.appendChild(curL);curRow.appendChild(curAll);inn.appendChild(curRow);
+  const curSub=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'12px',marginTop:'-6px'}});
+  curSub.textContent='Chosen for this moment in your day';inn.appendChild(curSub);
 
   const fg=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'10px',marginBottom:'28px'}});
   featured.forEach(function(m){fg.appendChild(mkModCard4(m,function(){go(m.id);}));});
@@ -2960,20 +2983,16 @@ function PL(){
 
 // ── MODULES PAGE
 const ALL_MODS=[
-  // ── INNER UNIVERSE (8)
+  // ── INNER UNIVERSE
   {id:'therapist',     name:'AI Therapist',          desc:'Compassionate AI conversations for emotional clarity',              on:true,  cat:'inner'},
-  {id:'parallellives', name:'Parallel Lives',        desc:'Simulate alternate pasts. Analyse future decisions. Two perspectives — one module.',        on:true,  cat:'inner'},
-  
-    {id:'dreams',        name:'Dream Weaver',          desc:'Nightly dream logging with deep AI interpretation',                 on:false, cat:'inner'},
-{id:'future',        name:'Future Self Mirror',    desc:'A conversation with your elder self — 10, 20 or 30 years ahead',    on:true,  cat:'inner'},
-    {id:'innerchild',    name:'Inner Child Healer',    desc:'Reconnect with and gently heal your younger self',                 on:false, cat:'inner'},
+  {id:'parallellives', name:'Parallel Lives',        desc:'Simulate alternate pasts. Analyse future decisions. Two perspectives — one module.', on:true,  cat:'inner'},
+  {id:'future',        name:'Future Self Mirror',    desc:'A conversation with your elder self — 10, 20 or 30 years ahead',    on:true,  cat:'inner'},
+  {id:'dreams',        name:'Dream Weaver',          desc:'Nightly dream logging with deep AI interpretation',                 on:false, cat:'inner'},
+  {id:'innerchild',    name:'Inner Child Healer',    desc:'Reconnect with and gently heal your younger self',                 on:false, cat:'inner'},
   {id:'timecapsule',   name:'Emotional Time Capsule',desc:'Seal a message or memory to be opened by your future self',        on:false, cat:'inner'},
-  // ── MENTORSHIP & COACHING (4)
-  
-  
-  
-  {id:'blueprint',     name:'Life Blueprint',         desc:'Discover your purpose, design your career, navigate transitions',   on:false, cat:'mentor'},
-  {id:'relationship',  name:'Relationship Architect', desc:'Deepen connections through relational intelligence',                on:false, cat:'mentor'},
+  // ── MENTORSHIP & COACHING
+  {id:'blueprint',     name:'Life Blueprint',         desc:'Discover your purpose, design your career, navigate transitions',  on:false, cat:'mentor'},
+  {id:'relationship',  name:'Relationship Architect', desc:'Deepen connections through relational intelligence',               on:false, cat:'mentor'},
 ];
 
 const MODS=ALL_MODS.filter(function(m){return m.cat==='inner';});
@@ -3004,7 +3023,8 @@ function ModulesPage(){
   // Filter pills
   let activeFilter='all';
   const filterRow=h('div',{css:{display:'flex',gap:'8px',marginBottom:'20px',overflowX:'auto',paddingBottom:'4px'}});
-  const filters=[{id:'all',label:'All 8'},{id:'available',label:'Available'},{id:'inner',label:'Inner Universe'},{id:'mentor',label:'Mentorship'}];
+  var _totalMods=ALL_MODS.length;var _avail=ALL_MODS.filter(function(m){return m.on;}).length;
+  const filters=[{id:'all',label:'All '+_totalMods},{id:'available',label:'Available ('+_avail+')'},{id:'inner',label:'Inner Universe'},{id:'mentor',label:'Mentorship'}];
   const pillEls={};
   filters.forEach(function(f){
     const pill=h('button',{css:{flexShrink:'0',padding:'6px 14px',borderRadius:'20px',border:'1px solid '+(f.id==='all'?TEAL:'rgba(255,255,255,.12)'),background:f.id==='all'?'rgba(0,229,192,.1)':'transparent',color:f.id==='all'?TEAL:'rgba(255,255,255,.45)',fontFamily:CR,fontSize:'12px',cursor:'pointer',transition:'all .2s',letterSpacing:'.05em'},on:{click:function(){
@@ -3020,6 +3040,23 @@ function ModulesPage(){
     pill.textContent=f.label;pillEls[f.id]=pill;filterRow.appendChild(pill);
   });
   inn.appendChild(filterRow);
+
+  // Recommended for you — ESP-aware
+  if(S.prof&&S.prof.goals){
+    var recRow=h('div',{css:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px',marginTop:'4px'}});
+    var recLbl=h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.18em',textTransform:'uppercase',color:GOLD}});recLbl.textContent='Recommended for You';
+    recRow.appendChild(recLbl);recRow.appendChild(h('div',{css:{flex:'1',height:'1px',background:'rgba(255,255,255,.06)'}}));
+    inn.appendChild(recRow);
+    inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'10px',marginTop:'-4px'}},'Based on your Eternal Self Profile'));
+    const recGrid=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'24px'}});
+    // Pick recommended: Future Self + Blueprint + Wisdom for goal-oriented users
+    var recIds=['future','parallellives','blueprint','therapist'];
+    recIds.forEach(function(rid){
+      var m=ALL_MODS.find(function(m){return m.id===rid&&m.on;});
+      if(m)recGrid.appendChild(mkModCard4(m,function(){go(m.id);}));
+    });
+    inn.appendChild(recGrid);
+  }
 
   // Grid container
   const gridContainer=h('div',{});inn.appendChild(gridContainer);
