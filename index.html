@@ -514,10 +514,20 @@ function applyTherapeuticVoice(utt){
   function setVoice(){
     var voices=window.speechSynthesis.getVoices();
     if(!voices.length)return false;
-    if(S.user&&S.user.voicePref){
-      var saved=voices.find(function(v){return v.name===S.user.voicePref;});
-      if(saved){utt.voice=saved;return true;}
+    var pref=(S.user&&S.user.voicePref)||'female';
+    var allEn2=voices.filter(function(v){return v.lang.startsWith('en');});
+    if(!allEn2.length)allEn2=voices;
+    var chosen;
+    if(pref==='male'){
+      chosen=allEn2.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||
+             allEn2.find(function(v){return v.name.toLowerCase().includes('male');})||
+             allEn2[1]||allEn2[0];
+    } else {
+      chosen=allEn2.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||
+             allEn2.find(function(v){return v.name.toLowerCase().includes('female');})||
+             allEn2[0];
     }
+    if(chosen){utt.voice=chosen;return true;}
     var fallback=getTherapeuticVoice();
     if(fallback){utt.voice=fallback;return true;}
     return false;
@@ -574,6 +584,7 @@ async function extractTherapistInsights(){
     S.prof.therapistInsights.unshift(Object.assign({ts:Date.now()},data));
     if(S.prof.therapistInsights.length>10)S.prof.therapistInsights.length=10;
     if(S.user){S.user.prof=S.prof;saveUser(S.user);}
+    try{localStorage.setItem('aevora_prof',JSON.stringify(S.prof));}catch(e){}
   }catch(e){}
 }
 
@@ -965,6 +976,10 @@ function LoginPage(){
     if(!S.ra||!S.ra.msgs||!S.ra.msgs.length){try{var _ra=JSON.parse(localStorage.getItem('aevora_ra')||'null');if(_ra)S.ra=_ra;}catch(e){}}
     if(stored.future)S.future=stored.future;
     if(!S.future||!S.future.msgs||!S.future.msgs.length){try{var _ft=JSON.parse(localStorage.getItem('aevora_future')||'null');if(_ft)S.future=_ft;}catch(e){}}
+    // Restore API key
+    if(stored.apiKey&&!localStorage.getItem('aevora_api_key')){
+      try{localStorage.setItem('aevora_api_key',stored.apiKey);}catch{}
+    }
     if(stored.journalEntries&&stored.journalEntries.length){
       try{
         var ej=JSON.parse(localStorage.getItem('aevora_journal')||'[]');
@@ -1014,10 +1029,10 @@ function LoginPage(){
       if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
     if(stored.pl&&stored.pl.sims&&stored.pl.sims.length)S.pl.sims=stored.pl.sims;
     if(stored.pl&&stored.pl.analyses&&stored.pl.analyses.length)S.pl.analyses=stored.pl.analyses;
-      // Therapist history fallback
-    if(S.th&&(!S.th.history||!S.th.history.length)&&(!S.th.msgs||S.th.msgs.length<=1)){
-      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th){S.th=_th;}}catch(e){}
-    }
+      // Therapist history — restore from user object first, then backup key
+      if(stored.th&&stored.th.msgs&&stored.th.msgs.length>1)S.th=stored.th;
+      else if(stored.th&&stored.th.history&&stored.th.history.length)S.th=stored.th;
+      if(!S.th||S.th.msgs.length<=1){try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th&&(_th.msgs&&_th.msgs.length>1||_th.history&&_th.history.length)){S.th=_th;}}catch(e){}}
     if(stored.log)S.log=stored.log;
       if(stored.dataSources)S.dataSources=stored.dataSources;
       if(stored.blueprint)S.blueprint=stored.blueprint;
@@ -2177,8 +2192,7 @@ function ESP2(){
     nb.disabled=!S.e2.val||!S.e2.val.toString().trim();
     inn.appendChild(nb);
   }
-  function nx(){if(!S.e2.val.toString().trim())return;S.e2.ans[Q2[S.e2.idx].id]=S.e2.val;if(S.e2.idx<Q2.length-1){S.e2.idx++;S.e2.val='';rq();}else{S.prof=S.e2.ans;if(S.e1&&S.e1.msgs&&S.e1.msgs.length&&S.prof.esp1Insights===undefined)S.prof.esp1Insights=null;if(S.user){S.user.prof=S.prof;saveUser(S.user);}logSession('esp','ESP profile completed',['onboarding','profile'],[]);goldParticles();haptic('success');go('home');}}
-    try{localStorage.setItem('aevora_prof',JSON.stringify(S.prof));}catch(e){}
+  function nx(){if(!S.e2.val.toString().trim())return;S.e2.ans[Q2[S.e2.idx].id]=S.e2.val;if(S.e2.idx<Q2.length-1){S.e2.idx++;S.e2.val='';rq();}else{S.prof=S.e2.ans;if(S.e1&&S.e1.msgs&&S.e1.msgs.length&&S.prof.esp1Insights===undefined)S.prof.esp1Insights=null;if(S.user){S.user.prof=S.prof;saveUser(S.user);}logSession('esp','ESP profile completed',['onboarding','profile'],[]);try{localStorage.setItem('aevora_prof',JSON.stringify(S.prof));}catch(e){}goldParticles();haptic('success');go('home');}}
   rq();return w;
 }
 
@@ -2810,6 +2824,7 @@ function Therapist(){
     const rep=await safeAI(S.th.msgs.map(m=>({role:m.r==='u'?'user':'assistant',content:m.t})),sys,function(){inp.focus();});
     if(!rep){sd();busy=false;sb.disabled=false;inp.disabled=false;showRetryBanner(md,function(){inp.value=S.th.msgs.filter(m=>m.r==='u').pop()?.t||'';send();});return;}
     sd();S.th.msgs.push({r:'a',t:rep});msg('a',rep);busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;inp.focus();
+    if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}
     logSession('therapist','Therapy session: '+t.substring(0,100),[],{});
     var uCount=S.th.msgs.filter(function(m){return m.r==='u';}).length;
     if(uCount>0&&uCount%5===0){extractTherapistInsights();}
@@ -5010,14 +5025,14 @@ function SettingsPage(){
       var opt=document.createElement('option');opt.textContent='Loading voices...';sel.appendChild(opt);
       window.speechSynthesis.addEventListener('voiceschanged',function(){populateVoicePanel();},{once:true});
     } else {
-      [{label:'Female Voice',v:femaleV},{label:'Male Voice',v:maleV}].forEach(function(o){
+      [{label:'Female Voice',v:femaleV,gender:'female'},{label:'Male Voice',v:maleV,gender:'male'}].forEach(function(o){
         if(!o.v)return;
-        var opt=document.createElement('option');opt.value=o.v.name;opt.textContent=o.label;
-        if(o.v.name===savedPref)opt.selected=true;
+        var opt=document.createElement('option');opt.value=o.gender;opt.textContent=o.label;
+        if(o.gender===savedPref)opt.selected=true;
         sel.appendChild(opt);
       });
-      // Respect saved preference; only default to female if nothing saved
-      if(savedPref){sel.value=savedPref;}else if(femaleV){sel.value=femaleV.name;}
+      // Respect saved gender preference; default to female
+      if(savedPref==='male'){sel.value='male';}else{sel.value='female';}
     }
     inner.appendChild(sel);
 
@@ -5042,7 +5057,7 @@ function SettingsPage(){
     if(!S.user.voiceRate)S.user.voiceRate=0.8;
     if(!S.user.voicePitch)S.user.voicePitch=0.65;
     // Only set female as default if no voice has been chosen yet
-    if(!S.user.voicePref&&femaleV){S.user.voicePref=femaleV.name;saveUser(S.user);}
+    if(!S.user.voicePref){S.user.voicePref='female';saveUser(S.user);}
     sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(S.user.voiceRate||0.8).toFixed(2),'voiceRate'));
     sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(S.user.voicePitch||0.65).toFixed(2),'voicePitch'));
     inner.appendChild(sliders);
@@ -5065,7 +5080,7 @@ function SettingsPage(){
     saveBtn.textContent='Save';
     saveBtn.addEventListener('click',function(){
       if(!S.user)S.user={};
-      S.user.voicePref=sel.value;
+      S.user.voicePref=sel.value; // 'male' or 'female'
       saveUser(S.user);
       saveBtn.textContent='✓ Saved';
       setTimeout(function(){saveBtn.textContent='Save';},1800);
@@ -5431,7 +5446,7 @@ go('welcome');}
 function buildPLAnalyseTab(analyseInn){
   // History count badge — tapping scrolls to history
   var histCount=(S.pl&&S.pl.analyses&&S.pl.analyses.length)||0;
-  if(!histCount){try{var _old=JSON.parse(localStorage.getItem('aevora_regret')||'[]');histCount=_old.length;}catch(e){}}
+  if(!histCount){try{var _old=JSON.parse(localStorage.getItem('aevora_analyses')||localStorage.getItem('aevora_regret')||'[]');histCount=_old.length;}catch(e){}}
   if(histCount>0){
     var hintBar=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px',padding:'8px 12px',borderRadius:'10px',background:'rgba(255,107,107,.05)',border:'1px solid rgba(255,107,107,.12)',cursor:'pointer'}});
     var hintTxt=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,107,107,.7)'}});
@@ -5631,10 +5646,12 @@ function buildPLAnalyseTab(analyseInn){
   function renderHistory(){
     var prev=analyseInn.querySelector('.hist-section');
     if(prev)prev.remove();
-    // Merge localStorage fallback (aevora_regret) into S.pl.analyses
+    // Merge localStorage fallback into S.pl.analyses
     if(!S.pl.analyses||!S.pl.analyses.length){
       try{
-        var old=JSON.parse(localStorage.getItem('aevora_regret')||'[]');
+        // Try aevora_analyses first (current key), then aevora_regret (legacy key)
+        var old=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');
+        if(!old.length)old=JSON.parse(localStorage.getItem('aevora_regret')||'[]');
         if(old.length){
           S.pl.analyses=old.map(function(p){return{ts:p.ts,domains:[p.domain||'general'],horizon:'',pathA:p.decision||'',pathB:'',data:p.data};});
         }
@@ -7081,6 +7098,7 @@ function FuturePage(){
     }
     S.future.msgs.push({role:'assistant',content:rep});fsMsg('assistant',rep);
     if(S.user){S.user.future=S.future;saveUser(S.user);}
+    try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(e){}
     logSession('future','Future self ('+selectedHorizon+'yr): '+txt.substring(0,80),['future',selectedHorizon+'yr'],{horizon:selectedHorizon});
     // Auto-enrich every 4 exchanges
     var _fsAiCount=S.future.msgs.filter(function(m){return m.role==='assistant';}).length;
@@ -9227,7 +9245,6 @@ if(window.visualViewport){
     if(stored&&stored.email){
       S.user=stored;
       if(stored.prof)S.prof=stored.prof;
-    if(!S.prof){try{var _pr2=JSON.parse(localStorage.getItem('aevora_prof')||'null');if(_pr2)S.prof=_pr2;}catch(e){}}
       if(!S.prof){try{var _pr=JSON.parse(localStorage.getItem('aevora_prof')||'null');if(_pr)S.prof=_pr;}catch(e){}}
       if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
       if(stored.pl&&stored.pl.sims&&stored.pl.sims.length)S.pl.sims=stored.pl.sims;
@@ -9236,11 +9253,10 @@ if(window.visualViewport){
       if(!S.pl)S.pl={};
       if(!S.pl.sims||!S.pl.sims.length){try{var _ss=JSON.parse(localStorage.getItem('aevora_sims')||'[]');if(_ss.length)S.pl.sims=_ss;}catch(e){}}
       if(!S.pl.analyses||!S.pl.analyses.length){try{var _sa=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');if(_sa.length)S.pl.analyses=_sa;}catch(e){}}
-      if(!S.pl.analyses||!S.pl.analyses.length){try{var _sa=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');if(_sa.length)S.pl.analyses=_sa;}catch(e){}}
-      // Therapist history fallback
-    if(S.th&&(!S.th.history||!S.th.history.length)&&(!S.th.msgs||S.th.msgs.length<=1)){
-      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th){S.th=_th;}}catch(e){}
-    }
+      // Therapist history — restore from user object first, then backup key
+      if(stored.th&&stored.th.msgs&&stored.th.msgs.length>1)S.th=stored.th;
+      else if(stored.th&&stored.th.history&&stored.th.history.length)S.th=stored.th;
+      if(!S.th||S.th.msgs.length<=1){try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th&&(_th.msgs&&_th.msgs.length>1||_th.history&&_th.history.length)){S.th=_th;}}catch(e){}}
     if(stored.log)S.log=stored.log;
       // Restore Oracle wisdom daily keys from user backup
       if(stored.wisdomHistory){
