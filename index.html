@@ -459,6 +459,13 @@ function buildUserContext(moduleId){
     var ot=S.prof.oracleThemes.slice(0,5);
     parts.push('[ORACLE QUESTIONS]\nThemes: '+ot.map(function(o){return o.theme;}).join(', ')+'\nRecent: '+ot[0].question);
   }
+  // Life Blueprint — purpose and north star
+  if(S.prof&&S.prof.purpose_statement){
+    var bpStr='Life purpose: '+S.prof.purpose_statement;
+    if(S.prof.north_star)bpStr+=' | North star: '+S.prof.north_star;
+    if(S.prof.purpose_values&&S.prof.purpose_values.length)bpStr+=' | Core values: '+S.prof.purpose_values.join(', ');
+    parts.push('[LIFE PURPOSE]\n'+bpStr);
+  }
   // Session log — last 8 entries, skip same module to avoid echo
   if(S.log&&S.log.length){
     var logs=S.log.filter(function(l){return l.module!==moduleId;}).slice(0,8);
@@ -923,16 +930,51 @@ function LoginPage(){
     if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
     if(stored.pl&&stored.pl.sims&&stored.pl.sims.length)S.pl.sims=stored.pl.sims;
     if(stored.pl&&stored.pl.analyses&&stored.pl.analyses.length)S.pl.analyses=stored.pl.analyses;
+    // Fallback: restore sims/analyses from their own localStorage keys if user object has none
+    if(!S.pl)S.pl={};
+    if(!S.pl.sims||!S.pl.sims.length){try{var ss=JSON.parse(localStorage.getItem('aevora_sims')||'[]');if(ss.length){S.pl.sims=ss;}}catch(e){}}
+    if(!S.pl.analyses||!S.pl.analyses.length){try{var sa=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');if(sa.length){S.pl.analyses=sa;}}catch(e){}}
+    // Therapist history fallback
+    if(S.th&&(!S.th.history||!S.th.history.length)&&(!S.th.msgs||S.th.msgs.length<=1)){
+      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th){S.th=_th;}}catch(e){}
+    }
     if(stored.log)S.log=stored.log;
+    // Restore Oracle wisdom daily keys from user backup
+    if(stored.wisdomHistory){
+      Object.keys(stored.wisdomHistory).forEach(function(date){
+        var key='aevora_wisdom_'+date;
+        if(!localStorage.getItem(key)){try{localStorage.setItem(key,JSON.stringify(stored.wisdomHistory[date]));}catch{}}
+      });
+    }
     if(stored.dataSources)S.dataSources=stored.dataSources;
     if(stored.blueprint)S.blueprint=stored.blueprint;
+    if(!S.blueprint||!S.blueprint.purposeAnswers){try{var _bp=JSON.parse(localStorage.getItem('aevora_blueprint')||'null');if(_bp)S.blueprint=_bp;}catch(e){}}
     if(stored.dreams)S.dreams=stored.dreams;
+    if(!S.dreams||!S.dreams.entries||!S.dreams.entries.length){try{var _dr=JSON.parse(localStorage.getItem('aevora_dreams')||'null');if(_dr)S.dreams=_dr;}catch(e){}}
     if(stored.timecapsules)S.timecapsules=stored.timecapsules;
+    if(!S.timecapsules||!S.timecapsules.length){try{var _tc=JSON.parse(localStorage.getItem('aevora_capsules')||'[]');if(_tc.length)S.timecapsules=_tc;}catch(e){}}
     if(stored.ic)S.ic=stored.ic;
+    if(!S.ic||!S.ic.msgs||!S.ic.msgs.length){try{var _ic=JSON.parse(localStorage.getItem('aevora_ic')||'null');if(_ic)S.ic=_ic;}catch(e){}}
     if(stored.ra)S.ra=stored.ra;
+    if(!S.ra||!S.ra.msgs||!S.ra.msgs.length){try{var _ra=JSON.parse(localStorage.getItem('aevora_ra')||'null');if(_ra)S.ra=_ra;}catch(e){}}
     if(stored.future)S.future=stored.future;
+    if(!S.future||!S.future.msgs||!S.future.msgs.length){try{var _ft=JSON.parse(localStorage.getItem('aevora_future')||'null');if(_ft)S.future=_ft;}catch(e){}}
     if(stored.journalEntries&&stored.journalEntries.length){
-      try{var ej=JSON.parse(localStorage.getItem('aevora_journal')||'[]');if(!ej.length)localStorage.setItem('aevora_journal',JSON.stringify(stored.journalEntries));}catch(e){}
+      try{
+        var ej=JSON.parse(localStorage.getItem('aevora_journal')||'[]');
+        if(!ej.length){
+          // Local empty — restore fully from backup
+          localStorage.setItem('aevora_journal',JSON.stringify(stored.journalEntries));
+        } else if(stored.journalEntries.length>ej.length){
+          // Backup has more entries — merge both, deduplicate by ts
+          var existingTs=new Set(ej.map(function(e){return e.ts;}));
+          var merged=ej.slice();
+          stored.journalEntries.forEach(function(e){if(!existingTs.has(e.ts))merged.push(e);});
+          merged.sort(function(a,b){return b.ts-a.ts;});
+          if(merged.length>200)merged.length=200;
+          localStorage.setItem('aevora_journal',JSON.stringify(merged));
+        }
+      }catch(e){}
     }
   }
   function doLogin(){
@@ -948,8 +990,15 @@ function LoginPage(){
 
     // Allow dev/demo access — bypass for testing
     if(email.toLowerCase()==='tariyel656@mail.ru'||email.toLowerCase()==='tariyel.mirzayev@gmail.com'){
-      const devUser={name:'Tariyel',fullName:'Tariyel Mirzayev',email:email,password:pass,createdAt:Date.now()};
-      saveUser(devUser); S.user=devUser; go('home'); return;
+      const existing=getUser();
+      if(existing&&existing.email&&existing.email.toLowerCase()===email.toLowerCase()){
+        // Restore existing user with ALL their data intact — never overwrite
+        restoreUserData(existing);
+      } else {
+        const devUser={name:'Tariyel',fullName:'Tariyel Mirzayev',email:email,password:pass,createdAt:Date.now()};
+        saveUser(devUser);S.user=devUser;
+      }
+      go('home');return;
     }
 
     if(stored&&stored.email.toLowerCase()===email.toLowerCase()&&stored.password===pass){
@@ -958,14 +1007,24 @@ function LoginPage(){
       if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
     if(stored.pl&&stored.pl.sims&&stored.pl.sims.length)S.pl.sims=stored.pl.sims;
     if(stored.pl&&stored.pl.analyses&&stored.pl.analyses.length)S.pl.analyses=stored.pl.analyses;
-      if(stored.log)S.log=stored.log;
+      // Therapist history fallback
+    if(S.th&&(!S.th.history||!S.th.history.length)&&(!S.th.msgs||S.th.msgs.length<=1)){
+      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th){S.th=_th;}}catch(e){}
+    }
+    if(stored.log)S.log=stored.log;
       if(stored.dataSources)S.dataSources=stored.dataSources;
       if(stored.blueprint)S.blueprint=stored.blueprint;
+      if(!S.blueprint||!S.blueprint.purposeAnswers){try{var _bp2=JSON.parse(localStorage.getItem('aevora_blueprint')||'null');if(_bp2)S.blueprint=_bp2;}catch(e){}}
       if(stored.dreams)S.dreams=stored.dreams;
+      if(!S.dreams||!S.dreams.entries||!S.dreams.entries.length){try{var _dr2=JSON.parse(localStorage.getItem('aevora_dreams')||'null');if(_dr2)S.dreams=_dr2;}catch(e){}}
       if(stored.timecapsules)S.timecapsules=stored.timecapsules;
+      if(!S.timecapsules||!S.timecapsules.length){try{var _tc2=JSON.parse(localStorage.getItem('aevora_capsules')||'[]');if(_tc2.length)S.timecapsules=_tc2;}catch(e){}}
       if(stored.ic)S.ic=stored.ic;
+      if(!S.ic||!S.ic.msgs||!S.ic.msgs.length){try{var _ic2=JSON.parse(localStorage.getItem('aevora_ic')||'null');if(_ic2)S.ic=_ic2;}catch(e){}}
       if(stored.ra)S.ra=stored.ra;
+      if(!S.ra||!S.ra.msgs||!S.ra.msgs.length){try{var _ra2=JSON.parse(localStorage.getItem('aevora_ra')||'null');if(_ra2)S.ra=_ra2;}catch(e){}}
       if(stored.future)S.future=stored.future;
+      if(!S.future||!S.future.msgs||!S.future.msgs.length){try{var _ft2=JSON.parse(localStorage.getItem('aevora_future')||'null');if(_ft2)S.future=_ft2;}catch(e){}}
       // voicePref, voiceRate, voicePitch are on S.user directly — no extra restore needed
       if(stored.journalEntries&&stored.journalEntries.length){
         try{
@@ -2648,6 +2707,7 @@ function Therapist(){
       S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:S.th.msgs.find(function(m){return m.r==='u';})&&S.th.msgs.find(function(m){return m.r==='u';}).t.substring(0,60)||'Session'});
       if(S.th.history.length>10)S.th.history.length=10;
       if(S.user){S.user.th=S.th;saveUser(S.user);}
+    try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}
     }
     S.th.msgs=[{r:'a',t:"Welcome. I\u2019m here. What would you like to explore today?"}];
     go('therapist');
@@ -3270,18 +3330,6 @@ function PL(){
     plTabContents[0].style.display=idx===0?'block':'none';
     plTabContents[1].style.display=idx===1?'block':'none';
   },GOLD);
-  // ⓘ icon aligned to tab description
-  const plDescRow=plTabBar.querySelector('div:last-child');
-  if(plDescRow){
-    plDescRow.style.display='flex';plDescRow.style.alignItems='flex-start';plDescRow.style.gap='8px';
-    const plInfoBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(255,255,255,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'rgba(255,255,255,.4)',cursor:'pointer',flexShrink:'0',marginTop:'1px',background:'rgba(0,0,0,.2)'}});
-    plInfoBtn.textContent='i';
-    plInfoBtn.addEventListener('click',function(){
-      var mod=ALL_MODS.find(function(m){return m.id==='parallellives';});
-      if(mod)showModuleInfo(mod);
-    });
-    plDescRow.appendChild(plInfoBtn);
-  }
   inn.appendChild(plTabBar);
   plTabContents[0].style.display=plActiveTab===0?'block':'none';
   plTabContents[1].style.display=plActiveTab===1?'block':'none';
@@ -3717,7 +3765,14 @@ function hasWrittenToday(){
   return entries.some(function(e){return new Date(e.ts).toDateString()===today;});
 }
 function saveJournalEntry(entry){
-  try{const entries=getJournalEntries();entries.unshift(entry);if(entries.length>200)entries.length=200;localStorage.setItem('aevora_journal',JSON.stringify(entries));if(S.user){S.user.journalEntries=entries.slice(0,50);saveUser(S.user);}}catch{}
+  try{
+    const entries=getJournalEntries();
+    entries.unshift(entry);
+    if(entries.length>200)entries.length=200;
+    localStorage.setItem('aevora_journal',JSON.stringify(entries));
+    // Back up all entries in user object (not just 50)
+    if(S.user){S.user.journalEntries=entries.slice(0,200);saveUser(S.user);}
+  }catch{}
   // Offline queue — entry is saved locally, will sync when backend is available
   if(!navigator.onLine){
     try{var q=JSON.parse(localStorage.getItem('aevora_offline_queue')||'[]');q.push({type:'journal',entry:entry,ts:Date.now()});localStorage.setItem('aevora_offline_queue',JSON.stringify(q));}catch(e){}
@@ -4942,8 +4997,8 @@ function SettingsPage(){
         if(o.v.name===savedPref)opt.selected=true;
         sel.appendChild(opt);
       });
-      // Always default to female
-      if(femaleV){sel.value=femaleV.name;}
+      // Respect saved preference; only default to female if nothing saved
+      if(savedPref){sel.value=savedPref;}else if(femaleV){sel.value=femaleV.name;}
     }
     inner.appendChild(sel);
 
@@ -4963,14 +5018,14 @@ function SettingsPage(){
       });
       wrap.appendChild(top);wrap.appendChild(s);return wrap;
     }
-    // Force our therapeutic defaults — reset any old saved values
+    // Set rate/pitch defaults only — never override user's voice choice
     if(!S.user)S.user={};
-    S.user.voiceRate=0.8;
-    S.user.voicePitch=0.65;
-    if(femaleV)S.user.voicePref=femaleV.name;
-    saveUser(S.user);
-    sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(0.8).toFixed(2),'voiceRate'));
-    sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(0.65).toFixed(2),'voicePitch'));
+    if(!S.user.voiceRate)S.user.voiceRate=0.8;
+    if(!S.user.voicePitch)S.user.voicePitch=0.65;
+    // Only set female as default if no voice has been chosen yet
+    if(!S.user.voicePref&&femaleV){S.user.voicePref=femaleV.name;saveUser(S.user);}
+    sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(S.user.voiceRate||0.8).toFixed(2),'voiceRate'));
+    sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(S.user.voicePitch||0.65).toFixed(2),'voicePitch'));
     inner.appendChild(sliders);
 
     // Preview + Save row
@@ -6079,7 +6134,7 @@ function renderAResult(data,container){
 // ══════════════════════════════════════════════════════
 //  TAB BAR WITH INLINE DESCRIPTION
 // ══════════════════════════════════════════════════════
-function mkTabBar(tabs, activeIdx, onChange, activeCol){
+function mkTabBar(tabs, activeIdx, onChange, activeCol, sideEl){
   activeCol=activeCol||null;
   const activeBg=activeCol?activeCol+'20':'rgba(255,255,255,.09)';
   const activeText=activeCol||'#F0EEF8';
@@ -6090,9 +6145,13 @@ function mkTabBar(tabs, activeIdx, onChange, activeCol){
 
   function updateDesc(idx){
     descArea.innerHTML='';
-    const d=h('p',{cls:'av-f',css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.45)',lineHeight:'1.6'}});
+    const dRow=h('div',{css:{display:'flex',alignItems:'flex-start',gap:'8px'}});
+    const d=h('p',{cls:'av-f',css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.45)',lineHeight:'1.6',flex:'1'}});
     d.textContent=tabs[idx].desc;
-    descArea.appendChild(d);
+    dRow.appendChild(d);
+    // Re-append the side element (e.g. info button) every time
+    if(sideEl)dRow.appendChild(sideEl);
+    descArea.appendChild(dRow);
   }
 
   tabs.forEach(function(tab,i){
@@ -6372,6 +6431,7 @@ function BlueprintPage(){
     S.prof.purpose_values=S.blueprint.selectedValues;
     if(S.user){S.user.prof=S.prof;saveUser(S.user);}
     if(S.user){S.user.blueprint=S.blueprint;saveUser(S.user);}
+    try{localStorage.setItem('aevora_blueprint',JSON.stringify(S.blueprint));}catch(e){}
     logSession('blueprint','Life purpose synthesised: '+(data.northStar||'').substring(0,60),['purpose','ikigai','values'],{northStar:data.northStar||''});
     // Render result
     purposeResult.innerHTML='';
@@ -6617,6 +6677,7 @@ function BlueprintPage(){
     try{data=JSON.parse(rep.replace(/```json|```/g,'').trim());}catch(e){data={summary:rep,strengths:[],capabilityGaps:[],quarters:[],watchOut:''};}
     S.blueprint.careerResult=data;
     if(S.user){S.user.blueprint=S.blueprint;saveUser(S.user);}
+    try{localStorage.setItem('aevora_blueprint',JSON.stringify(S.blueprint));}catch(e){}
     logSession('blueprint','Career blueprint: '+(data.summary||'').substring(0,80),['career','gaps','roadmap'],{});
     renderCareerResult(data);
   });
@@ -6785,6 +6846,7 @@ function FuturePage(){
   resetBtn.addEventListener('click',function(){
     S.future.msgs=[];S.future.integrated=false;S.future.integration=null;
     if(S.user){S.user.future=S.future;saveUser(S.user);}
+    try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(e){}
     msgWrap.innerHTML='';intResult.innerHTML='';intBtn.disabled=true;intBtn.style.opacity='0.4';
     if(lock03.parentNode===null){sec03Wrap.appendChild(lock03);lock03.style.opacity='1';}
     if(selectedHorizon)sendOpeningMsg();
@@ -6915,6 +6977,11 @@ function FuturePage(){
   var lock02=lockOverlay('Select a horizon above to begin the conversation');
   sec02Wrap.appendChild(lock02);
   inn.appendChild(sec02Wrap);
+
+  // Auto-unlock if returning to an existing session
+  if(selectedHorizon){
+    setTimeout(function(){unlockConversation();},100);
+  }
 
   // ══════════════════════
   // SECTION 03 — What They Told You
@@ -7365,6 +7432,7 @@ function DreamPage(){
     S.dreams.entries.unshift(entry);
     if(S.dreams.entries.length>100)S.dreams.entries.length=100;
     if(S.user){S.user.dreams=S.dreams;saveUser(S.user);}
+    try{localStorage.setItem('aevora_dreams',JSON.stringify(S.dreams));}catch(e){}
     // Auto-enrich dream patterns when 3+ dreams logged
     if(S.dreams.entries.length>=3){setTimeout(function(){enrichFromDreams();},800);}
     logSession('dreams','Dream logged: '+(dreamTa.value||'').substring(0,80),(interp&&interp.tags)||[],{mood:selMood,sleepQuality:selSleep});
@@ -7510,6 +7578,7 @@ function DreamPage(){
           try{
             S.dreams.patterns=JSON.parse(rep.replace(/```json|```/g,'').trim());
             if(S.user){S.user.dreams=S.dreams;saveUser(S.user);}
+            try{localStorage.setItem('aevora_dreams',JSON.stringify(S.dreams));}catch(e){}
           }catch(e){}
         }
         renderPatterns();
@@ -7598,7 +7667,7 @@ function TimeCapsulePage(){
   scrl.appendChild(inn);
 
   // Init state
-  if(!S.timecapsules)S.timecapsules=[];
+  if(!S.timecapsules||!S.timecapsules.length){try{var _tcb=JSON.parse(localStorage.getItem('aevora_capsules')||'[]');S.timecapsules=_tcb.length?_tcb:[];}catch(e){S.timecapsules=[];}}  
 
   // ── Header
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
@@ -7799,6 +7868,7 @@ function TimeCapsulePage(){
     };
     S.timecapsules.unshift(capsule);
     if(S.user){S.user.timecapsules=S.timecapsules;saveUser(S.user);}
+    try{localStorage.setItem('aevora_capsules',JSON.stringify(S.timecapsules));}catch(e){}
     logSession('timecapsule','Capsule sealed: '+capsule.title.substring(0,60),['timecapsule','future'],{mood:selTcMood,unlockType:ucType});
     sealBtn.innerHTML='🔒  Seal My Capsule';sealBtn.disabled=false;
     // Reset form
@@ -7997,6 +8067,7 @@ function TimeCapsulePage(){
           S.timecapsules[ci].openedAt=Date.now();
           if(ret&&!ret.startsWith('__ERR__'))S.timecapsules[ci].retrospective=ret;
           if(S.user){S.user.timecapsules=S.timecapsules;saveUser(S.user);}
+          try{localStorage.setItem('aevora_capsules',JSON.stringify(S.timecapsules));}catch(e){}
           logSession('timecapsule','Capsule opened: '+cap.title.substring(0,60),['timecapsule'],{});
           renderCapsules();
         });
@@ -8064,10 +8135,30 @@ function WisdomPage(){
 
   function getTodayKey(){return 'aevora_wisdom_'+new Date().toISOString().slice(0,10);}
   function getSavedWisdom(){try{return JSON.parse(localStorage.getItem(getTodayKey())||'null');}catch{return null;}}
-  function saveWisdom(d){try{localStorage.setItem(getTodayKey(),JSON.stringify(d));}catch{}}
+  function saveWisdom(d){
+    try{localStorage.setItem(getTodayKey(),JSON.stringify(d));}catch{}
+    // Aggregate all wisdom into S.user for cross-origin backup
+    if(S.user){
+      if(!S.user.wisdomHistory)S.user.wisdomHistory={};
+      S.user.wisdomHistory[getTodayKey().replace('aevora_wisdom_','')]=d;
+      // Keep last 90 days
+      var keys=Object.keys(S.user.wisdomHistory).sort().reverse();
+      if(keys.length>90){keys.slice(90).forEach(function(k){delete S.user.wisdomHistory[k];});}
+      saveUser(S.user);
+    }
+  }
 
   function getWisdomHistory(){
     var hist=[];
+    // First restore from user backup if local keys are missing
+    if(S.user&&S.user.wisdomHistory){
+      Object.keys(S.user.wisdomHistory).forEach(function(date){
+        var key='aevora_wisdom_'+date;
+        if(!localStorage.getItem(key)){
+          try{localStorage.setItem(key,JSON.stringify(S.user.wisdomHistory[date]));}catch{}
+        }
+      });
+    }
     for(var k in localStorage){
       if(k.startsWith('aevora_wisdom_')){
         try{var d=JSON.parse(localStorage.getItem(k));if(d)hist.push({date:k.replace('aevora_wisdom_',''),data:d});}catch{}
@@ -8486,6 +8577,7 @@ function InnerChildPage(){
     }
     S.ic.msgs.push({role:'assistant',content:rep});icMsg('assistant',rep);
     if(S.user){S.user.ic=S.ic;saveUser(S.user);}
+    try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(e){}
     // Auto-enrich every 4 exchanges
     var icAiCount=S.ic.msgs.filter(function(m){return m.role==='assistant';}).length;
     if(icAiCount>0&&icAiCount%4===0){autoEnrichFromChat(S.ic.msgs,'inner-child');}
@@ -8945,6 +9037,7 @@ function RelationshipPage(){
     S.ra.msgs.push({role:'assistant',content:rep,rp:isRP});
     raMsg('assistant',rep,isRP);
     if(S.user){S.user.ra=S.ra;saveUser(S.user);}
+    try{if(!isRP)localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(e){}
     if(!isRP){
       var _raAi=S.ra.msgs.filter(function(m){return m.role==='assistant'&&!m.rp;}).length;
       if(_raAi>0&&_raAi%4===0){autoEnrichFromChat(S.ra.msgs.filter(function(m){return!m.rp;}),'relationship');}
@@ -9118,13 +9211,34 @@ if(window.visualViewport){
       if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
       if(stored.pl&&stored.pl.sims&&stored.pl.sims.length)S.pl.sims=stored.pl.sims;
       if(stored.pl&&stored.pl.analyses&&stored.pl.analyses.length)S.pl.analyses=stored.pl.analyses;
-      if(stored.log)S.log=stored.log;
+      // Fallback: restore from separate keys if user object has none
+      if(!S.pl)S.pl={};
+      if(!S.pl.sims||!S.pl.sims.length){try{var _ss=JSON.parse(localStorage.getItem('aevora_sims')||'[]');if(_ss.length)S.pl.sims=_ss;}catch(e){}}
+      if(!S.pl.analyses||!S.pl.analyses.length){try{var _sa=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');if(_sa.length)S.pl.analyses=_sa;}catch(e){}}
+      // Therapist history fallback
+    if(S.th&&(!S.th.history||!S.th.history.length)&&(!S.th.msgs||S.th.msgs.length<=1)){
+      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th){S.th=_th;}}catch(e){}
+    }
+    if(stored.log)S.log=stored.log;
+      // Restore Oracle wisdom daily keys from user backup
+      if(stored.wisdomHistory){
+        Object.keys(stored.wisdomHistory).forEach(function(date){
+          var key='aevora_wisdom_'+date;
+          if(!localStorage.getItem(key)){try{localStorage.setItem(key,JSON.stringify(stored.wisdomHistory[date]));}catch{}}
+        });
+      }
       if(stored.blueprint)S.blueprint=stored.blueprint;
+      if(!S.blueprint||!S.blueprint.purposeAnswers){try{var _bp2=JSON.parse(localStorage.getItem('aevora_blueprint')||'null');if(_bp2)S.blueprint=_bp2;}catch(e){}}
       if(stored.dreams)S.dreams=stored.dreams;
+      if(!S.dreams||!S.dreams.entries||!S.dreams.entries.length){try{var _dr2=JSON.parse(localStorage.getItem('aevora_dreams')||'null');if(_dr2)S.dreams=_dr2;}catch(e){}}
       if(stored.timecapsules)S.timecapsules=stored.timecapsules;
+      if(!S.timecapsules||!S.timecapsules.length){try{var _tc2=JSON.parse(localStorage.getItem('aevora_capsules')||'[]');if(_tc2.length)S.timecapsules=_tc2;}catch(e){}}
       if(stored.ic)S.ic=stored.ic;
+      if(!S.ic||!S.ic.msgs||!S.ic.msgs.length){try{var _ic2=JSON.parse(localStorage.getItem('aevora_ic')||'null');if(_ic2)S.ic=_ic2;}catch(e){}}
       if(stored.ra)S.ra=stored.ra;
+      if(!S.ra||!S.ra.msgs||!S.ra.msgs.length){try{var _ra2=JSON.parse(localStorage.getItem('aevora_ra')||'null');if(_ra2)S.ra=_ra2;}catch(e){}}
       if(stored.future)S.future=stored.future;
+      if(!S.future||!S.future.msgs||!S.future.msgs.length){try{var _ft2=JSON.parse(localStorage.getItem('aevora_future')||'null');if(_ft2)S.future=_ft2;}catch(e){}}
       if(stored.journalEntries&&stored.journalEntries.length){
         try{var ej=JSON.parse(localStorage.getItem('aevora_journal')||'[]');if(!ej.length)localStorage.setItem('aevora_journal',JSON.stringify(stored.journalEntries));}catch(e){}
       }
