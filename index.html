@@ -107,8 +107,13 @@ function mkBackBtn(label,onClick){
 
 
 // ── TYPEWRITER EFFECT
+function stripMd(t){
+  // Remove *italic* and **bold** markers, keep content
+  return t.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/^[\*\-] /gm,'').trim();
+}
 function typeWriter(el,text,speed,onDone){
-  speed=speed||18;el.textContent='';var i=0;
+  text=stripMd(text||'');
+  speed=speed||8;el.textContent='';var i=0;
   var cur=document.createElement('span');
   cur.style.cssText='display:inline-block;width:2px;height:.9em;background:currentColor;margin-left:2px;vertical-align:text-bottom;opacity:.7;border-radius:1px;animation:av-p .7s ease-in-out infinite;';
   el.appendChild(cur);
@@ -134,7 +139,15 @@ function goldParticles(anchor){
     var dy=(-60-Math.random()*180);
     var dur=(0.7+Math.random()*0.9).toFixed(2);
     var gold=Math.random()>0.4?'#F2C94C':'#FDE68A';
-    p.style.cssText='position:fixed;left:'+cx+'px;top:'+cy+'px;width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+gold+';pointer-events:none;z-index:9999;animation:av-particle '+dur+'s ease-out forwards;--dx:'+dx+'px;--dy:'+dy+'px;box-shadow:0 0 4px '+gold+'90;';
+    p.style.position='fixed';
+    p.style.left=cx+'px';p.style.top=cy+'px';
+    p.style.width=sz+'px';p.style.height=sz+'px';
+    p.style.borderRadius='50%';p.style.background=gold;
+    p.style.pointerEvents='none';p.style.zIndex='9999';
+    p.style.boxShadow='0 0 6px '+gold;
+    p.style.animation='av-particle '+dur+'s ease-out forwards';
+    p.style.setProperty('--dx',dx+'px');
+    p.style.setProperty('--dy',dy+'px');
     document.body.appendChild(p);
     setTimeout(function(el){el.remove();},1900,p);
   }
@@ -212,16 +225,15 @@ function dots(){
 }
 
 // Audio beep for mic start/stop
-function playBeep(freq,dur,vol=0.25){
+function playBeep(type){
   try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
-    const osc=ctx.createOscillator();
-    const gain=ctx.createGain();
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    var osc=ctx.createOscillator();var gain=ctx.createGain();
     osc.connect(gain);gain.connect(ctx.destination);
-    osc.frequency.value=freq;osc.type='sine';
-    gain.gain.setValueAtTime(vol,ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
-    osc.start();osc.stop(ctx.currentTime+dur);
+    osc.type='sine';
+    if(type==='start'){osc.frequency.value=528;gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(0.1,ctx.currentTime+0.08);gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.35);}
+    else{osc.frequency.value=396;gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(0.06,ctx.currentTime+0.05);gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.25);}
+    osc.start();osc.stop(ctx.currentTime+0.5);
   }catch(e){}
 }
 
@@ -250,7 +262,7 @@ function mkMic(inp){
     rec.continuous=true;       // KEY FIX: keep recording through pauses
     rec.interimResults=true;
     rec.lang='en-US';
-    rec.onstart=()=>{setActive(true);playBeep(880,0.15);};
+    rec.onstart=()=>{setActive(true);playBeep('start');};
     rec.onresult=e=>{
       // Accumulate final results — never delete on pause
       let interim='';
@@ -281,7 +293,7 @@ function mkMic(inp){
 
   function stopRec(){
     setActive(false);
-    playBeep(440,0.2);
+    playBeep('stop');
     try{rec.stop();}catch(e){}
     rec=null;
   }
@@ -293,8 +305,23 @@ function mkMic(inp){
   return btn;
 }
 
-function getApiKey(){try{return localStorage.getItem('aevora_api_key')||'';}catch{return '';}}
-function saveApiKey(k){try{localStorage.setItem('aevora_api_key',k);}catch{}}
+function getApiKey(){
+  try{
+    var k=localStorage.getItem('aevora_api_key')||'';
+    if(k)return k;
+    // Fallback: restore from user object if localStorage was cleared
+    if(S.user&&S.user.apiKey){
+      localStorage.setItem('aevora_api_key',S.user.apiKey);
+      return S.user.apiKey;
+    }
+    return '';
+  }catch{return '';}
+}
+function saveApiKey(k){
+  try{localStorage.setItem('aevora_api_key',k);}catch{}
+  // Backup inside user object so it survives localStorage clears
+  if(k&&S.user){S.user.apiKey=k;saveUser(S.user);}
+}
 
 async function ai(msgs,sys,retries=2,opts){
   const key=getApiKey();
@@ -406,6 +433,32 @@ function buildUserContext(moduleId){
     }).join('\n');
     parts.push('[PAST DECISION ANALYSES]\n'+anaStr);
   }
+  // Journal insights (diary reflections)
+  if(S.user&&S.user.journalInsights&&S.user.journalInsights.length){
+    var ji=S.user.journalInsights.slice(-5);
+    parts.push('[JOURNAL REFLECTIONS]\n'+ji.map(function(j){return j.insight;}).join(' | '));
+  }
+  // Dream patterns
+  if(S.prof&&S.prof.dreamPatterns){
+    var dp=S.prof.dreamPatterns;var dpParts=[];
+    if(dp.recurringSymbols&&dp.recurringSymbols.length)dpParts.push('Symbols: '+dp.recurringSymbols.join(', '));
+    if(dp.dominantArchetype)dpParts.push('Archetype: '+dp.dominantArchetype);
+    if(dp.dreamInsight)dpParts.push(dp.dreamInsight);
+    if(dp.emotionalArc)dpParts.push('Emotional arc: '+dp.emotionalArc);
+    if(dpParts.length)parts.push('[DREAM PATTERNS]\n'+dpParts.join(' | '));
+  }
+  // Decision style from Parallel Lives
+  if(S.prof&&S.prof.decisionStyle){
+    var dsStr='Decision style: '+S.prof.decisionStyle;
+    if(S.prof.riskProfile)dsStr+=' | Risk profile: '+S.prof.riskProfile;
+    if(S.prof.plValues&&S.prof.plValues.length)dsStr+=' | Core decision values: '+S.prof.plValues.join(', ');
+    parts.push('[DECISION STYLE]\n'+dsStr);
+  }
+  // Oracle themes (what the user asks about most)
+  if(S.prof&&S.prof.oracleThemes&&S.prof.oracleThemes.length){
+    var ot=S.prof.oracleThemes.slice(0,5);
+    parts.push('[ORACLE QUESTIONS]\nThemes: '+ot.map(function(o){return o.theme;}).join(', ')+'\nRecent: '+ot[0].question);
+  }
   // Session log — last 8 entries, skip same module to avoid echo
   if(S.log&&S.log.length){
     var logs=S.log.filter(function(l){return l.module!==moduleId;}).slice(0,8);
@@ -448,8 +501,8 @@ function getTherapeuticVoice(){
   return voices.find(function(v){return v.lang.startsWith('en');})||null;
 }
 function applyTherapeuticVoice(utt){
-  utt.rate=(S.user&&S.user.voiceRate)||0.82;
-  utt.pitch=(S.user&&S.user.voicePitch)||0.88;
+  utt.rate=(S.user&&S.user.voiceRate)||0.8;
+  utt.pitch=(S.user&&S.user.voicePitch)||0.65;
   utt.volume=0.93;
   function setVoice(){
     var voices=window.speechSynthesis.getVoices();
@@ -512,6 +565,83 @@ async function extractTherapistInsights(){
   }catch(e){}
 }
 
+// ── AUTO-ENRICH: Generic chat enrichment (Future Self, Inner Child, RA)
+async function autoEnrichFromChat(msgs, source){
+  try{
+    if(!msgs||msgs.length<6)return;
+    var transcript=msgs.slice(-10).map(function(m){
+      var role=m.role||m.r;var text=m.content||m.t;
+      return(role==='user'?'User: ':'AI: ')+String(text).substring(0,200);
+    }).join('\n');
+    var sys='Analyse this '+source+' conversation. Return ONLY valid compact JSON: {emotionalState:"1-3 words",themes:["theme1","theme2","theme3"],goals:["goal1"],fears:["fear1"],patterns:["pattern1"]}';
+    var result=await ai([{role:'user',content:transcript}],sys,1,{tokens:180});
+    if(!result||result.startsWith('__ERR__'))return;
+    var data=JSON.parse(result.replace(/```json|```/g,'').trim());
+    if(!S.prof)S.prof={};
+    if(!S.prof.therapistInsights)S.prof.therapistInsights=[];
+    S.prof.therapistInsights.unshift(Object.assign({ts:Date.now(),source:source},data));
+    if(S.prof.therapistInsights.length>15)S.prof.therapistInsights.length=15;
+    if(S.user){S.user.prof=S.prof;saveUser(S.user);}
+  }catch(e){}
+}
+
+// ── AUTO-ENRICH: Dream patterns
+async function enrichFromDreams(){
+  try{
+    if(!S.dreams||!S.dreams.entries||S.dreams.entries.length<3)return;
+    var recent=S.dreams.entries.slice(0,7).map(function(d){return d.text;}).join('\n---\n');
+    var sys='Analyse these dream entries for recurring patterns. Return ONLY valid compact JSON: {recurringSymbols:["sym1","sym2"],emotionalArc:"brief description",dominantArchetype:"name",dreamInsight:"1 sentence about what these dreams reveal"}';
+    var result=await ai([{role:'user',content:recent}],sys,1,{tokens:200});
+    if(!result||result.startsWith('__ERR__'))return;
+    var data=JSON.parse(result.replace(/```json|```/g,'').trim());
+    if(!S.prof)S.prof={};
+    S.prof.dreamPatterns=Object.assign({ts:Date.now()},data);
+    if(S.user){S.user.prof=S.prof;saveUser(S.user);}
+  }catch(e){}
+}
+
+// ── AUTO-ENRICH: Decision style from Parallel Lives
+async function enrichFromPL(){
+  try{
+    if(!S.pl||!S.pl.analyses||!S.pl.analyses.length)return;
+    var recent=S.pl.analyses.slice(0,5).map(function(a){
+      return'Compared path: "'+a.pathA.substring(0,60)+'" vs "'+a.pathB.substring(0,60)+'" in domain: '+(a.domains||[]).join('/');
+    }).join('\n');
+    var sys='From these life path comparisons, extract this person\u2019s decision-making style. Return ONLY valid compact JSON: {decisionStyle:"1-2 sentences about how they make major decisions",riskProfile:"risk-averse|balanced|risk-taking",coreDecisionValues:["val1","val2"]}';
+    var result=await ai([{role:'user',content:recent}],sys,1,{tokens:180});
+    if(!result||result.startsWith('__ERR__'))return;
+    var data=JSON.parse(result.replace(/```json|```/g,'').trim());
+    if(!S.prof)S.prof={};
+    if(data.decisionStyle)S.prof.decisionStyle=data.decisionStyle;
+    if(data.riskProfile)S.prof.riskProfile=data.riskProfile;
+    if(data.coreDecisionValues)S.prof.plValues=data.coreDecisionValues;
+    S.prof.decisionUpdated=Date.now();
+    if(S.user){S.user.prof=S.prof;saveUser(S.user);}
+  }catch(e){}
+}
+
+// ── AUTO-ENRICH: Oracle themes (lightweight — no AI needed)
+function enrichFromOracle(question){
+  try{
+    if(!S.prof)S.prof={};
+    if(!S.prof.oracleThemes)S.prof.oracleThemes=[];
+    var themes={purpose:['purpose','meaning','why','direction','path'],
+      love:['love','relationship','partner','heart','connect'],
+      work:['career','work','job','business','success'],
+      growth:['grow','change','transform','better','evolve'],
+      fear:['fear','afraid','anxiety','worry','doubt'],
+      loss:['loss','grief','death','end','gone'],
+      identity:['who','am i','myself','identity','authentic']};
+    var detected='reflection';
+    var q=question.toLowerCase();
+    for(var t in themes){if(themes[t].some(function(k){return q.includes(k);})){detected=t;break;}}
+    S.prof.oracleThemes.unshift({ts:Date.now(),question:question.substring(0,80),theme:detected});
+    if(S.prof.oracleThemes.length>15)S.prof.oracleThemes.length=15;
+    if(S.user){S.user.prof=S.prof;saveUser(S.user);}
+  }catch(e){}
+}
+
+
 function showRetryBanner(container,onRetry){
   const existing=document.getElementById('aevora-retry-banner');
   if(existing)existing.remove();
@@ -560,8 +690,10 @@ function showApiKeyPrompt(msg){
 }
 
 function espBanner(){
-  var espAnswers=S.prof?Object.keys(S.prof).filter(function(k){return k.startsWith('q');}).length:0;
-  if(espAnswers>=5)return null;
+  if(!S.prof)return null;
+  var espFields=['personality','values','goals','growth','strengths','philosophy','age','gender','status','children'];
+  var filled=espFields.filter(function(f){return S.prof[f]&&String(S.prof[f]).length>0;}).length;
+  if(filled>=8)return null; // substantially complete — hide banner
   const b=h('div',{css:{marginBottom:'16px',background:'rgba(242,201,76,.07)',border:'1px solid rgba(242,201,76,.25)',borderRadius:'8px',padding:'12px 14px',display:'flex',alignItems:'center',gap:'12px',cursor:'pointer'},on:{click:()=>go('esp1')}});
   var bIco=h('div',{css:{width:'34px',height:'34px',borderRadius:'8px',background:'rgba(242,201,76,.12)',border:'1px solid rgba(242,201,76,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0'}});bIco.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F2C94C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';b.appendChild(bIco);
   const txt=h('div',{});
@@ -1220,7 +1352,7 @@ const MODULE_DETAILS={
     concept:'A deeply empathetic, trauma-informed AI companion available any time. Evidence-based therapeutic conversation: reflective listening, gentle reframing, somatic awareness. Available in text or continuous Voice Chat mode — tap the mic button to enter a fully immersive voice session where the AI listens, thinks, and speaks back to you.',
     actions:'Open a session, share what is present, receive reflective responses. Tap Voice Chat for a hands-free immersive experience. Sessions draw from your ESP profile for deeply personalised responses.',
     inputs:'Your messages or voice, ESP profile context, session history.',
-    outputs:'Therapeutic responses, emotional insights, crisis detection (with 988 resources), ESP enrichment.',
+    outputs:'Therapeutic responses, emotional insights, crisis detection (with crisis resources), ESP enrichment.',
     links:'Receives context from all modules. Feeds emotional insights back to your Eternal Self Profile.',
   },
   regret:{
@@ -1519,7 +1651,7 @@ function checkCrisis(text){
 
 // ── Crisis Resources (regional, per spec requirement)
 const CRISIS_RESOURCES=[
-  {name:'988 Suicide & Crisis Lifeline',detail:'Call or text 988',region:'United States',icon:'🇺🇸'},
+  {name:'Crisis Support',detail:'Contact your local emergency services or crisis helpline',region:'International',icon:'🌍'},
   {name:'Crisis Text Line',detail:'Text HOME to 741741',region:'US / Canada / UK',icon:'💬'},
   {name:'International Crisis Lines',detail:'iasp.info/resources/Crisis_Centres',region:'Worldwide',icon:'🌍'},
   {name:'Dövlət Yardım Xətti',detail:'152',region:'Azerbaijan',icon:'🇦🇿'},
@@ -1618,7 +1750,7 @@ function showDistressBanner(container){
 const SAFETY_PROMPT=`
 SAFETY GUARDRAILS — MANDATORY — READ BEFORE RESPONDING:
 
-1. CRISIS DETECTION: If the user expresses any suicidal ideation, self-harm intent, or statements suggesting they may hurt themselves, STOP your regular response immediately. Respond ONLY with: genuine compassion, validation of their feelings, and a clear statement that professional support is available. Never attempt to "solve" or "reframe" a crisis — simply acknowledge and encourage them to contact a crisis line (988 in the US, or local services).
+1. CRISIS DETECTION: If the user expresses any suicidal ideation, self-harm intent, or statements suggesting they may hurt themselves, STOP your regular response immediately. Respond ONLY with: genuine compassion, validation of their feelings, and a clear statement that professional support is available. Never attempt to "solve" or "reframe" a crisis — simply acknowledge and encourage them to contact a local crisis helpline or emergency services.
 
 2. NOT A THERAPIST: You are an AI companion, not a licensed therapist, psychologist, or medical professional. Never diagnose, prescribe, or recommend specific treatments. For clinical concerns, always encourage professional help.
 
@@ -1730,7 +1862,7 @@ function go(scr){
   // First-time users see onboarding after signup
   if(S.user&&scr==='welcome'&&!S.onboarded){scr='onboarding';}
   // Module disclaimers for trauma-adjacent modules
-  const disclaimerModules=['innerchild','dreams'];
+  const disclaimerModules=[];
   if(disclaimerModules.includes(scr)&&!S['disclaimer_'+scr]){
     S['disclaimer_'+scr]=true;
     const targetScr=scr;
@@ -1746,7 +1878,7 @@ function go(scr){
   }
   // Track previous screen for back navigation
   var moduleScreens=['parallellives','therapist','future','wisdom','blueprint','relationship','dreams','innerchild','timecapsule'];
-  if(moduleScreens.includes(scr))S._returnTo=S.scr;
+  if(moduleScreens.includes(scr)&&scr!==S.scr)S._returnTo=S.scr;
   S.scr=scr;
   try{history.pushState({scr:scr},'','#'+scr);}catch(e){}
   const av=document.getElementById('av');
@@ -1797,6 +1929,20 @@ function ESP1(){
   e1logo.appendChild(h('p',{css:{color:C.tl,fontSize:'12px',letterSpacing:'.18em',textTransform:'uppercase',fontFamily:CR}},t('esp_phase1')));
   hdr.appendChild(e1logo);
   hdr.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'600',color:'#F0EEF8'}},t('esp_awaken')));
+  // Progress bar
+  var progWrap=h('div',{id:'esp1-progress',css:{marginTop:'10px'}});
+  var progTop=h('div',{css:{display:'flex',justifyContent:'space-between',marginBottom:'5px'}});
+  var progLbl=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)'}});progLbl.textContent='Getting to know you';
+  var progCount=h('span',{cls:'esp1-count',css:{fontFamily:CR,fontSize:'11px',color:TEAL}});progCount.textContent='0 / 7';
+  progTop.appendChild(progLbl);progTop.appendChild(progCount);
+  var progTrack=h('div',{css:{height:'3px',background:'rgba(255,255,255,.08)',borderRadius:'3px'}});
+  var progBar=h('div',{cls:'esp1-bar',css:{height:'3px',background:'linear-gradient(90deg,'+TEAL+','+GOLD+')',borderRadius:'3px',width:'0%',transition:'width .5s ease'}});
+  progTrack.appendChild(progBar);progWrap.appendChild(progTop);progWrap.appendChild(progTrack);
+  hdr.appendChild(progWrap);
+  // Importance note
+  var impNote=h('div',{css:{marginTop:'10px',padding:'8px 12px',background:'rgba(242,201,76,.06)',border:'1px solid rgba(242,201,76,.15)',borderRadius:'8px'}});
+  impNote.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(242,201,76,.8)',lineHeight:'1.55'}},'Completing this stage unlocks fully personalised AI insights across every module. The more you share, the deeper Aevora works.'));
+  hdr.appendChild(impNote);
   w.appendChild(hdr);
   const md=h('div',{cls:'av-msgs',css:{flex:'1',overflowY:'auto',padding:'18px 20px',position:'relative',zIndex:'1'}});
   w.appendChild(md);
@@ -1854,7 +2000,28 @@ function ESP1(){
     if(!rep){sd();busy=false;sb.disabled=false;inp.disabled=false;return;}
     sd();S.e1.msgs.push({role:'assistant',content:rep});msg('a',rep);
     busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;inp.focus();
-    if(n>=3){S.e1.done=true;cb.style.display='block';}
+    // Count AI questions asked (each assistant message = one exchange)
+    var aiMsgCount=S.e1.msgs.filter(function(m){return m.role==='assistant';}).length;
+    // Update progress indicator
+    var progEl=document.getElementById('esp1-progress');
+    if(progEl){
+      var pct=Math.min(100,Math.round((aiMsgCount/7)*100));
+      progEl.querySelector('.esp1-bar').style.width=pct+'%';
+      progEl.querySelector('.esp1-count').textContent=Math.min(aiMsgCount,7)+' / 7';
+    }
+    if(aiMsgCount>=3){S.e1.done=true;cb.style.display='block';}
+    // At 7 questions, auto-complete phase 1
+    if(aiMsgCount>=7){
+      sb.disabled=true;inp.disabled=true;
+      var autoEnd=h('div',{css:{background:'rgba(0,229,192,.08)',border:'1px solid rgba(0,229,192,.25)',borderRadius:'12px',padding:'14px 16px',marginTop:'12px',textAlign:'center'}});
+      autoEnd.appendChild(h('p',{css:{fontFamily:PF,fontSize:'15px',color:TEAL,marginBottom:'8px'}},'Phase 1 complete \u2714'));
+      autoEnd.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.5)',lineHeight:'1.6',marginBottom:'12px'}},'Aevora now has enough to personalise every module for you. Your profile is the heart of the experience.'));
+      var goBtn=h('button',{css:{padding:'10px 24px',background:'linear-gradient(135deg,'+TEAL+',#00B4A0)',border:'none',borderRadius:'10px',color:'#0D0B1A',fontFamily:PF,fontWeight:'600',fontSize:'14px',cursor:'pointer'}});
+      goBtn.textContent='Build My Profile \u2192';
+      goBtn.addEventListener('click',function(){go('esp2');});
+      autoEnd.appendChild(goBtn);
+      md.appendChild(autoEnd);md.scrollTop=md.scrollHeight;
+    }
   }
   sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
   busy=true;inp.disabled=true;sb.disabled=true;st();
@@ -2271,7 +2438,7 @@ function OngoingChat(onEnd){
   let state='idle'; // idle|listening|processing|speaking|stopped
   let rec=null, silenceTimer=null, finalText='';
 
-  const TSYS='You are Aevoras AI Therapist in an ongoing voice conversation — deeply empathetic, warm, compassionate. Keep responses concise (2-3 sentences max) for natural dialogue flow. Be present, poetic, grounded. Never diagnose. If crisis detected, gently mention 988. End each response with either a gentle question OR a moment of silence to let the user reflect.';
+  const TSYS='You are Aevoras AI Therapist in an ongoing voice conversation — deeply empathetic, warm, compassionate. Keep responses concise (2-3 sentences max) for natural dialogue flow. Be present, poetic, grounded. Never diagnose. If crisis detected, gently encourage them to contact their local emergency services or a crisis helpline. End each response with either a gentle question OR a moment of silence to let the user reflect.';
 
   const w=h('div',{css:{position:'relative',minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'#0D0B23'}});
   w.appendChild(homeStars());
@@ -2349,7 +2516,7 @@ function OngoingChat(onEnd){
     msgs.push({r:'u',t:text});
     addToTranscript('u',text);
     S.th.msgs.push({r:'u',t:text});
-    playBeep(660,0.1,0.15);
+    playBeep('start');
     // Crisis check in ongoing chat
     const ocCrisis=checkCrisis(text);
     if(ocCrisis.crisis){
@@ -2375,13 +2542,17 @@ function OngoingChat(onEnd){
     if(state==='stopped')return;
     if(!SR){stateLabel.textContent='Voice not supported in this browser';return;}
     finalText='';state='listening';updateOrb('listening');
-    playBeep(880,0.1,0.15);
+    playBeep('start');
     rec=new SR();
     rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
     rec.onresult=function(e){
       for(var i=e.resultIndex;i<e.results.length;i++){
         if(e.results[i].isFinal){
-          finalText+=e.results[i][0].transcript+' ';
+          var t=e.results[i][0].transcript.trim();
+          // Deduplicate: skip if identical to last result
+          if(t&&t===rec._lastResult)continue;
+          rec._lastResult=t;
+          finalText+=(finalText?' ':'')+t;
           clearTimeout(silenceTimer);
           silenceTimer=setTimeout(function(){
             if(finalText.trim()&&state==='listening'){
@@ -2403,7 +2574,7 @@ function OngoingChat(onEnd){
     window.speechSynthesis.cancel();
     try{if(rec)rec.stop();}catch(e){}
     updateOrb('stopped');
-    playBeep(330,0.25,0.2);
+    playBeep('stop');
     setTimeout(function(){onEnd(msgs);},600);
   }
 
@@ -2460,9 +2631,29 @@ function Therapist(){
   voiceBtn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="'+TEAL+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>Voice</span>';
   voiceBtn.title='Start ongoing voice conversation';
   hdr.appendChild(voiceBtn);
+  // New conversation button moved below header
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   w.appendChild(hdr);
   const tb=espBanner();if(tb)w.appendChild(tb);
+  // New session action — below header, not inside it
+  const newSessBar=h('div',{css:{padding:'8px 20px',borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',justifyContent:'flex-end',position:'relative',zIndex:'1'}});
+  const newSessBtn=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.28)',fontFamily:CR,fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',transition:'all .2s',padding:'4px 8px',borderRadius:'6px'}});
+  newSessBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New conversation';
+  newSessBtn.title='Start a new session (saves current)';
+  newSessBtn.addEventListener('mouseenter',function(){newSessBtn.style.color='rgba(0,229,192,.7)';newSessBtn.style.background='rgba(0,229,192,.06)';});
+  newSessBtn.addEventListener('mouseleave',function(){newSessBtn.style.color='rgba(255,255,255,.28)';newSessBtn.style.background='transparent';});
+  newSessBtn.addEventListener('click',function(){
+    if(S.th.msgs.length>2){
+      if(!S.th.history)S.th.history=[];
+      S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:S.th.msgs.find(function(m){return m.r==='u';})&&S.th.msgs.find(function(m){return m.r==='u';}).t.substring(0,60)||'Session'});
+      if(S.th.history.length>10)S.th.history.length=10;
+      if(S.user){S.user.th=S.th;saveUser(S.user);}
+    }
+    S.th.msgs=[{r:'a',t:"Welcome. I\u2019m here. What would you like to explore today?"}];
+    go('therapist');
+  });
+  newSessBar.appendChild(newSessBtn);
+  w.appendChild(newSessBar);
   const md=h('div',{cls:'av-msgs',css:{flex:'1',overflowY:'auto',padding:'18px 20px',position:'relative',zIndex:'1'}});w.appendChild(md);
   function msg(r,t){
     const m=h('div',{cls:'av-f',css:{marginBottom:'18px',display:'flex',flexDirection:r==='u'?'row-reverse':'row',gap:'10px',alignItems:'flex-start'}});
@@ -2474,10 +2665,34 @@ function Therapist(){
   // Welcome back card
   if(S.th.msgs.length>2){
     var wbCard=h('div',{css:{background:'rgba(0,229,192,.05)',border:'1px solid rgba(0,229,192,.15)',borderRadius:'12px',padding:'12px 14px',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px',animation:'av-f .4s ease'}});
-    var wbTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.5)',lineHeight:'1.5',flex:'1'}});wbTxt.textContent='Continuing your session — '+S.th.msgs.length+' messages so far.';
+    var wbTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.5)',lineHeight:'1.5',flex:'1'}});wbTxt.textContent='Continuing your session \u2014 '+S.th.msgs.length+' messages so far.';
     var wbFresh=h('button',{css:{fontFamily:CR,fontSize:'12px',color:TEAL,background:'transparent',border:'none',cursor:'pointer',flexShrink:'0',textDecoration:'underline'}});wbFresh.textContent='Start fresh';
     wbFresh.addEventListener('click',function(){S.th.msgs=[{r:'a',t:"Welcome back. I’m here. What would you like to explore today?"}];go('therapist');});
     wbCard.appendChild(wbTxt);wbCard.appendChild(wbFresh);md.appendChild(wbCard);
+  }
+  // Past sessions history
+  if(S.th.history&&S.th.history.length>0){
+    var histSection=h('div',{css:{marginBottom:'14px'}});
+    var histToggle=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.3)',fontFamily:CR,fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'5px',marginBottom:'8px',letterSpacing:'.06em'}});
+    histToggle.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>PAST SESSIONS ('+S.th.history.length+')';
+    var histList=h('div',{css:{display:'none'}});
+    histToggle.addEventListener('click',function(){var open=histList.style.display==='block';histList.style.display=open?'none':'block';});
+    S.th.history.forEach(function(sess,si){
+      var sc=h('div',{css:{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'10px',padding:'10px 12px',marginBottom:'6px',transition:'all .2s',cursor:'pointer'}});
+      sc.addEventListener('mouseenter',function(){sc.style.background='rgba(0,229,192,.05)';sc.style.borderColor='rgba(0,229,192,.2)';});
+      sc.addEventListener('mouseleave',function(){sc.style.background='rgba(255,255,255,.03)';sc.style.borderColor='rgba(255,255,255,.07)';});
+      var st2=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}});
+      var sd2=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});
+      sd2.textContent=new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+sess.msgs.length+' messages';
+      st2.appendChild(sd2);
+      var sl=h('button',{css:{background:'transparent',border:'none',color:TEAL,fontFamily:CR,fontSize:'11px',cursor:'pointer',flexShrink:'0'}});sl.textContent='Resume';
+      sl.addEventListener('click',function(e){e.stopPropagation();S.th.msgs=sess.msgs;if(S.user){S.user.th=S.th;saveUser(S.user);}go('therapist');});
+      st2.appendChild(sl);sc.appendChild(st2);
+      var sp=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+      sp.textContent=sess.preview||'Session';sc.appendChild(sp);
+      histList.appendChild(sc);
+    });
+    histSection.appendChild(histToggle);histSection.appendChild(histList);md.appendChild(histSection);
   }
   S.th.msgs.forEach(m=>msg(m.r,m.t));
   let tk=null,busy=false;
@@ -2487,7 +2702,7 @@ function Therapist(){
   // Safety note
   const safeFooter=h('div',{css:{padding:'5px 16px',textAlign:'center',borderTop:'1px solid rgba(255,255,255,.04)'}});
   const sfTxt=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.2)',letterSpacing:'.03em',lineHeight:'1.5'}});
-  sfTxt.textContent='Aevora supports reflection, not therapy. In crisis, call 988 (US) or your local emergency line.';
+  sfTxt.textContent='Aevora supports reflection, not therapy. In crisis, contact your local emergency services or a crisis helpline in your country.';
   safeFooter.appendChild(sfTxt);w.appendChild(safeFooter);
   const ft=h('div',{css:{padding:'14px 20px',borderTop:`1px solid ${C.bo}`,display:'flex',gap:'8px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.85)',backdropFilter:'blur(12px)',alignItems:'center'}});
   const inp=h('input',{cls:'av-in',placeholder:t('th_placeholder'),css:{flex:'1'}});
@@ -2503,7 +2718,7 @@ function Therapist(){
     const t=inp.value.trim();if(!t||busy)return;
     inp.value='';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',t);
     const ctx=buildUserContext('therapist');
-    const sys=`You are Aevora's AI Therapist — deeply empathetic, trauma-informed, compassionate. Be warm, therapeutic. Use reflective listening and gentle reframing. Keep responses 3-5 sentences. Poetic but grounded. End with a gentle question. If crisis detected, gently mention 988.${ctx}`;
+    const sys=`You are Aevora's AI Therapist — deeply empathetic, trauma-informed, compassionate. Be warm, therapeutic. Use reflective listening and gentle reframing. Keep responses 3-5 sentences. Poetic but grounded. End with a gentle question. If crisis detected, gently encourage them to contact their local emergency services or a crisis helpline.${ctx}`;
     S.th.msgs.push({r:'u',t});st();
     // Check for crisis before calling AI
     const crisisCheck=checkCrisis(t);
@@ -2634,7 +2849,7 @@ function mkListenBtn(getText){
     // Small delay so cancel clears properly
     setTimeout(function(){
       var utt=new SpeechSynthesisUtterance(text);
-      utt.rate=0.88;utt.pitch=1;utt.volume=1;utt.lang='en-US';
+      utt.rate=0.8;utt.pitch=0.65;utt.volume=1;utt.lang='en-US';
       // Try to pick a good voice if available
       var voices=window.speechSynthesis.getVoices();
       if(voices.length>0){
@@ -4025,17 +4240,7 @@ function SelfPage(){
     }
   })();
 
-  // ── Quick Actions strip
-  var qaRow=h('div',{css:{display:'flex',gap:'8px',flexWrap:'wrap',marginBottom:'24px'}});
-  [{icon:'\u25CE',label:'Therapist',id:'therapist'},{icon:'\u25CA',label:'Dream',id:'dreams'},{icon:'\u270E',label:'Diary',id:'journal'},{icon:'\u25A7',label:'Blueprint',id:'blueprint'}].forEach(function(qa){
-    var pill=h('button',{css:{display:'flex',alignItems:'center',gap:'5px',padding:'6px 13px',borderRadius:'20px',background:'rgba(0,229,192,.06)',border:'1px solid rgba(0,229,192,.2)',color:'rgba(0,229,192,.8)',fontFamily:CR,fontSize:'12px',cursor:'pointer',transition:'all .2s'}});
-    pill.innerHTML='<span style="font-size:12px">'+qa.icon+'</span><span>'+qa.label+'</span>';
-    pill.addEventListener('mouseenter',function(){pill.style.background='rgba(0,229,192,.12)';pill.style.borderColor=TEAL;});
-    pill.addEventListener('mouseleave',function(){pill.style.background='rgba(0,229,192,.06)';pill.style.borderColor='rgba(0,229,192,.2)';});
-    pill.addEventListener('click',function(){go(qa.id);});
-    qaRow.appendChild(pill);
-  });
-  inn.appendChild(qaRow);
+
 
   // ── SECTION 01 — Your Journey
   inn.appendChild(sHdr('01','Your Journey','Everything you have explored, surfaced, and understood'));
@@ -4146,12 +4351,11 @@ function SelfPage(){
 
   const profileText=JSON.stringify(S.prof);
   Promise.all([
-    ai([{role:'user',content:'Analyze this user profile and return ONLY valid JSON with a "traits" object containing scores 0-100 for: openness, conscientiousness, extraversion, agreeableness, neuroticism. Profile: '+profileText}],'You are a personality analyst. Return ONLY valid compact JSON.'),
+    ai([{role:'user',content:'Analyze this profile and therapy/dream/journal history. Return ONLY valid JSON with a "traits" object with scores 0-100 for: openness, conscientiousness, extraversion, agreeableness, neuroticism. Draw on ALL data including therapy insights, dream patterns, and journal reflections. Profile: '+profileText}],'You are a personality analyst. Return ONLY valid compact JSON.'),
     ai([{role:'user',content:'From this profile extract and rank the top 3 core values as short phrases (3-4 words max each). Return ONLY valid JSON with a "values" array of 3 strings. Profile: '+profileText}],'Return ONLY valid compact JSON.'),
-    ai([{role:'user',content:'Based on this profile, invent 4 plausible life chapter names and approximate years that feel true to this person. Return ONLY valid JSON with a "chapters" array of objects with "year" (number) and "name" (string, 2-3 words). Profile: '+profileText}],'Return ONLY valid compact JSON.'),
-    ai([{role:'user',content:'Analyze this profile and identify 3 meaningful behavioral or emotional patterns. Return ONLY valid JSON with a "patterns" array of 3 objects each with "icon" (single emoji), "text" (1-2 sentences), "strength" (High/Moderate/Very High). Profile: '+profileText}],'Return ONLY valid compact JSON.')
+    ai([{role:'user',content:'Based on this profile AND any therapy insights, journal reflections, and dream patterns, create 4 meaningful life chapter names and years for this person. Return ONLY valid JSON with a "chapters" array of objects with "year" (number) and "name" (string, 2-3 words). Profile: '+profileText}],'Return ONLY valid compact JSON.'),
+    ai([{role:'user',content:'Analyze this profile including therapy insights, dream patterns, oracle questions, and journal reflections. Identify 3 deep behavioral or emotional patterns. Return ONLY valid JSON with a "patterns" array of 3 objects each with "icon" (single emoji), "text" (1-2 sentences referencing specific patterns found across sessions), "strength" (High/Moderate/Very High). Profile: '+profileText}],'Return ONLY valid compact JSON.')
   ]).then(function(results){
-    loader.remove();
     try{
       const personality=JSON.parse(results[0].replace(/```json|```/g,'').trim());
       const valuesData=JSON.parse(results[1].replace(/```json|```/g,'').trim());
@@ -4162,7 +4366,6 @@ function SelfPage(){
       renderAISections({openness:72,conscientiousness:68,extraversion:55,agreeableness:80,neuroticism:30},['Authentic connection','Personal growth','Inner freedom'],[{year:2015,name:'First Steps'},{year:2018,name:'Finding Voice'},{year:2021,name:'Turning Point'},{year:2024,name:'New Chapter'}],[{icon:'?',text:'You tend to reflect deeply before acting.',strength:'High'},{icon:'?',text:'Growth is a core driver for you.',strength:'Very High'},{icon:'?',text:'Connection matters deeply to you.',strength:'Moderate'}]);
     }
   }).catch(function(){
-    loader.remove();
     renderAISections({openness:72,conscientiousness:68,extraversion:55,agreeableness:80,neuroticism:30},['Authentic connection','Personal growth','Inner freedom'],[{year:2015,name:'First Steps'},{year:2018,name:'Finding Voice'},{year:2021,name:'Turning Point'},{year:2024,name:'New Chapter'}],[{icon:'?',text:'You tend to reflect deeply before acting.',strength:'High'},{icon:'?',text:'Growth is a core driver for you.',strength:'Very High'},{icon:'?',text:'Connection matters deeply to you.',strength:'Moderate'}]);
   });
 
@@ -4187,7 +4390,31 @@ function SelfPage(){
     s05Container.appendChild(sHdr('05','Patterns Detected','Recurring themes in how you think, feel, and move through life'));
     if(patterns.length>0)s05Container.appendChild(mkPatterns(patterns));
 
-    // ── SECTION 06 — Your Answers
+    // ── WHAT SHAPED THIS — transparency section
+  (function(){
+    var sources=[];
+    if(S.prof&&S.prof.therapistInsights&&S.prof.therapistInsights.length){
+      var bySource={};
+      S.prof.therapistInsights.forEach(function(i){var s=i.source||'therapist';bySource[s]=(bySource[s]||0)+1;});
+      Object.keys(bySource).forEach(function(s){
+        var label={'therapist':'therapy','future-self':'Future Self','inner-child':'Inner Child','relationship':'Relationship Architect'}[s]||s;
+        sources.push(bySource[s]+' '+label+' session'+(bySource[s]>1?'s':''));
+      });
+    }
+    if(S.prof&&S.prof.dreamPatterns)sources.push('dream pattern analysis');
+    if(S.prof&&S.prof.decisionStyle)sources.push('life path analysis');
+    if(S.prof&&S.prof.oracleThemes&&S.prof.oracleThemes.length)sources.push(S.prof.oracleThemes.length+' oracle reflection'+(S.prof.oracleThemes.length>1?'s':''));
+    if(S.user&&S.user.journalInsights&&S.user.journalInsights.length)sources.push(S.user.journalInsights.length+' journal reflection'+(S.user.journalInsights.length>1?'s':''));
+    if(!sources.length)return;
+    var sec=h('div',{css:{marginBottom:'28px',padding:'14px 16px',background:'rgba(0,229,192,.04)',border:'1px solid rgba(0,229,192,.12)',borderRadius:'12px'}});
+    sec.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',letterSpacing:'.12em',textTransform:'uppercase',color:'rgba(0,229,192,.5)',marginBottom:'8px'}},'What shaped these insights'));
+    var srcTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.45)',lineHeight:'1.65'}});
+    srcTxt.textContent='Your profile is informed by: '+sources.join(', ')+'. The more you use Aevora, the deeper your Self portrait becomes.';
+    sec.appendChild(srcTxt);
+    inn.appendChild(sec);
+  })();
+
+  // ── SECTION 06 — Your Answers
     inn.appendChild(sHdr('06','Your Answers','What you told Aevora about yourself'));
     const Q_LABELS={age:'Age',gender:'Identity',status:'Relationship',children:'Children',personality:'Personality',values:'Core values',strengths:'Strengths',goals:'Life goals',growth:'Growth areas',philosophy:'Philosophy'};
     const ansTitleRow=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'flex-end',marginBottom:'10px',marginTop:'-8px'}});
@@ -4700,19 +4927,23 @@ function SettingsPage(){
     var sel=document.createElement('select');
     sel.style.cssText='width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#F0EEF8;font-family:Satoshi,Inter,sans-serif;font-size:14px;padding:10px 12px;border-radius:12px;margin-bottom:12px;cursor:pointer;outline:none;transition:all .25s;';
     var voices=window.speechSynthesis.getVoices();
-    voices=voices.slice().sort(function(a,b){var ae=a.lang.startsWith('en')?0:1,be=b.lang.startsWith('en')?0:1;if(ae!==be)return ae-be;return a.name.localeCompare(b.name);});
+    var allEn=voices.filter(function(v){return v.lang.startsWith('en');});
+    if(!allEn.length)allEn=voices;
+    var femaleV=allEn.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||allEn[0];
+    var maleV=allEn.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||allEn.find(function(v){return v!==femaleV;})||allEn[0];
     var savedPref=(S.user&&S.user.voicePref)||'';
     if(!voices.length){
       var opt=document.createElement('option');opt.textContent='Loading voices...';sel.appendChild(opt);
       window.speechSynthesis.addEventListener('voiceschanged',function(){populateVoicePanel();},{once:true});
     } else {
-      voices.forEach(function(v){
-        var opt=document.createElement('option');
-        opt.value=v.name;
-        opt.textContent=v.name.replace('Microsoft ','').replace(' - Natural','')+'  ('+v.lang+')';
-        if(v.name===savedPref||((!savedPref)&&getTherapeuticVoice()&&v.name===getTherapeuticVoice().name))opt.selected=true;
+      [{label:'Female Voice',v:femaleV},{label:'Male Voice',v:maleV}].forEach(function(o){
+        if(!o.v)return;
+        var opt=document.createElement('option');opt.value=o.v.name;opt.textContent=o.label;
+        if(o.v.name===savedPref)opt.selected=true;
         sel.appendChild(opt);
       });
+      // Always default to female
+      if(femaleV){sel.value=femaleV.name;}
     }
     inner.appendChild(sel);
 
@@ -4732,8 +4963,14 @@ function SettingsPage(){
       });
       wrap.appendChild(top);wrap.appendChild(s);return wrap;
     }
-    sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,((S.user&&S.user.voiceRate)||0.82).toFixed(2),'voiceRate'));
-    sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,((S.user&&S.user.voicePitch)||0.88).toFixed(2),'voicePitch'));
+    // Force our therapeutic defaults — reset any old saved values
+    if(!S.user)S.user={};
+    S.user.voiceRate=0.8;
+    S.user.voicePitch=0.65;
+    if(femaleV)S.user.voicePref=femaleV.name;
+    saveUser(S.user);
+    sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(0.8).toFixed(2),'voiceRate'));
+    sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(0.65).toFixed(2),'voicePitch'));
     inner.appendChild(sliders);
 
     // Preview + Save row
@@ -4743,8 +4980,8 @@ function SettingsPage(){
     previewBtn.addEventListener('click',function(){
       window.speechSynthesis.cancel();
       var utt=new SpeechSynthesisUtterance('I am here with you. Take a breath. What would you like to explore today?');
-      utt.rate=(S.user&&S.user.voiceRate)||0.82;
-      utt.pitch=(S.user&&S.user.voicePitch)||0.88;
+      utt.rate=(S.user&&S.user.voiceRate)||0.8;
+      utt.pitch=(S.user&&S.user.voicePitch)||0.65;
       utt.volume=0.93;
       var v=voices.find(function(v){return v.name===sel.value;});
       if(v)utt.voice=v;
@@ -4902,8 +5139,15 @@ function SettingsPage(){
   const apiLabel=h('p',{css:{fontFamily:CR,fontSize:'15px',fontWeight:'500',color:'#F0EEF8'}});apiLabel.textContent='Claude API Key';
   const apiSub=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'#9B94BC',marginTop:'1px'}});
   const k=getApiKey();
-  apiSub.textContent=k?'Key saved · sk-ant-...'+k.slice(-6):'Not set — tap to add';
-  apiSub.style.color=k?'rgba(0,229,192,.7)':'#F87171';
+  apiSub.textContent=k?'✓ Active · sk-ant-…'+k.slice(-4):'Tap to add your API key';
+  apiSub.style.color=k?'rgba(0,229,192,.8)':'#F87171';
+  // Add visible status badge
+  var apiBadge=h('div',{css:{padding:'4px 10px',borderRadius:'20px',fontSize:'11px',fontFamily:CR,fontWeight:'600',flexShrink:'0',
+    background:k?'rgba(0,229,192,.1)':'rgba(248,113,113,.1)',
+    border:'1px solid '+(k?'rgba(0,229,192,.3)':'rgba(248,113,113,.3)'),
+    color:k?TEAL:'#F87171'}});
+  apiBadge.textContent=k?'Active':'Missing';
+  apiRow.appendChild(apiBadge);
   apiTxt.appendChild(apiLabel);apiTxt.appendChild(apiSub);
   apiRow.appendChild(apiTxt);
   apiRow.appendChild(h('div',{css:{fontSize:'16px',color:'rgba(255,255,255,.3)'}}).appendChild?h('p',{css:{color:'rgba(255,255,255,.3)',fontSize:'16px'}},'>'):h('p',{css:{color:'rgba(255,255,255,.3)'}},'>'));
@@ -5280,6 +5524,8 @@ function buildPLAnalyseTab(analyseInn){
     if(S.pl.analyses.length>20)S.pl.analyses.length=20;
     try{if(S.user){S.user.pl=S.pl;saveUser(S.user);}}catch(e){}
     try{localStorage.setItem('aevora_analyses',JSON.stringify(S.pl.analyses));}catch(e){}
+    // Auto-enrich decision style from analyses
+    setTimeout(function(){enrichFromPL();},500);
     savePlan({ts:Date.now(),domain:selDomains.length?selDomains.join(', '):'general',decision:(pathATa.value+' vs '+pathBTa.value).substring(0,80),data:data});
     logSession('parallellives_analyse','Decision: '+pathATa.value.substring(0,50)+' vs '+pathBTa.value.substring(0,50),selDomains,{verdict:data.verdict,pathAScore:(data.pathA||{}).regretScore,pathBScore:(data.pathB||{}).regretScore});
     logSession('parallellives_analyse','Decision: '+pathATa.value.substring(0,50)+' vs '+pathBTa.value.substring(0,50),selDomains,{verdict:data.verdict,pathAScore:(data.pathA||{}).regretScore,pathBScore:(data.pathB||{}).regretScore});
@@ -6395,6 +6641,11 @@ function FuturePage(){
   var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
+  // ── If returning to active session, scroll to conversation
+  if(S.future&&S.future.horizon&&S.future.msgs&&S.future.msgs.length>0){
+    S._returnTo=S._returnTo||'home';
+  }
+
   // ── Header
   var fsMod=ALL_MODS.find(function(m){return m.id==='future';})||{id:'future',name:'Future Self Mirror'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
@@ -6745,6 +6996,9 @@ function FuturePage(){
     S.future.msgs.push({role:'assistant',content:rep});fsMsg('assistant',rep);
     if(S.user){S.user.future=S.future;saveUser(S.user);}
     logSession('future','Future self ('+selectedHorizon+'yr): '+txt.substring(0,80),['future',selectedHorizon+'yr'],{horizon:selectedHorizon});
+    // Auto-enrich every 4 exchanges
+    var _fsAiCount=S.future.msgs.filter(function(m){return m.role==='assistant';}).length;
+    if(_fsAiCount>0&&_fsAiCount%4===0){autoEnrichFromChat(S.future.msgs,'future-self');}
     fsBusy=false;fsSendBtn.disabled=false;fsSendBtn.style.opacity='1';fsInput.disabled=false;fsInput.focus();
     checkUnlockIntegration();
   }
@@ -6882,36 +7136,37 @@ function getMoonPhase(){
   var knownNew=new Date(2000,0,6);
   var days=(new Date()-knownNew)/(1000*60*60*24);
   var phase=(days%29.53)/29.53;
-  if(phase<0.03||phase>0.97)return{name:'New Moon',ico:'🌑',meaning:'New beginnings — your subconscious is resetting. Dreams may be sparse but carry quiet depth.',intensity:'Low'};
-  if(phase<0.25)return{name:'Waxing Crescent',ico:'🌒',meaning:'Intentions are forming. Dreams carry themes of growth, possibility, and forward movement.',intensity:'Building'};
-  if(phase<0.27)return{name:'First Quarter',ico:'🌓',meaning:'Tension and decision. Dreams may present crossroads reflecting waking dilemmas.',intensity:'Moderate'};
-  if(phase<0.50)return{name:'Waxing Gibbous',ico:'🌔',meaning:'Anticipation and refinement. Vivid, emotionally rich dreams are common now.',intensity:'High'};
-  if(phase<0.53)return{name:'Full Moon',ico:'🌕',meaning:'Peak dream intensity. The veil between conscious and unconscious thins. Expect vivid, revealing dreams.',intensity:'Peak'};
-  if(phase<0.75)return{name:'Waning Gibbous',ico:'🌖',meaning:'Integration. Dreams process recent events and unfinished emotional business.',intensity:'High'};
-  if(phase<0.77)return{name:'Last Quarter',ico:'🌗',meaning:'Release. Dreams surface what you are ready to let go of or forgive.',intensity:'Moderate'};
-  return{name:'Waning Crescent',ico:'🌘',meaning:'Surrender and deep rest. Messages from the deeper self emerge quietly.',intensity:'Low'};
+  var today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long'});
+  if(phase<0.03||phase>0.97)return{name:'New Moon',ico:'\uD83C\uDF11',date:today,meaning:'What this means for your dreams tonight: New Moon nights tend to bring fewer or quieter dreams. If you dream, write it down \u2014 sparse dreams at this phase often carry more symbolic weight.',intensity:'Low'};
+  if(phase<0.25)return{name:'Waxing Crescent',ico:'\uD83C\uDF12',date:today,meaning:'What this means for your dreams tonight: The moon is growing. Dreams at this phase often carry themes of possibility and forward movement \u2014 beginnings that have not yet taken shape.',intensity:'Building'};
+  if(phase<0.27)return{name:'First Quarter',ico:'\uD83C\uDF13',date:today,meaning:'What this means for your dreams tonight: A moon of tension and decision. Dreams may present crossroads or dilemmas that mirror something unresolved in your waking life.',intensity:'Moderate'};
+  if(phase<0.50)return{name:'Waxing Gibbous',ico:'\uD83C\uDF14',date:today,meaning:'What this means for your dreams tonight: The moon is nearly full. Dreams tend to be more vivid and emotionally intense right now. Good time to log carefully.',intensity:'High'};
+  if(phase<0.53)return{name:'Full Moon',ico:'\uD83C\uDF15',date:today,meaning:'What this means for your dreams tonight: Peak dream intensity. Many people report their most vivid and revealing dreams at Full Moon. If you ever dream clearly \u2014 it may be tonight.',intensity:'Peak'};
+  if(phase<0.75)return{name:'Waning Gibbous',ico:'\uD83C\uDF16',date:today,meaning:'What this means for your dreams tonight: The moon is releasing its fullness. Dreams at this phase tend to process recent events \u2014 unfinished emotional business surfacing to be resolved.',intensity:'High'};
+  if(phase<0.77)return{name:'Last Quarter',ico:'\uD83C\uDF17',date:today,meaning:'What this means for your dreams tonight: A moon of letting go. Dreams often surface what you are ready to release \u2014 old beliefs, old resentments, things that no longer fit.',intensity:'Moderate'};
+  return{name:'Waning Crescent',ico:'\uD83C\uDF18',date:today,meaning:'What this means for your dreams tonight: The quietest phase. Dreams are deep, slow, and symbolic. The mind is preparing for a new cycle. Rest and listen.',intensity:'Low'};
 }
 function getSeasonalArchetypes(){
   var m=new Date().getMonth();
   if(m===11||m<=1)return[
-    {name:'The Descent',sym:'⬇️',desc:'Going inward, facing darkness, finding what is hidden below the surface.'},
-    {name:'The Threshold',sym:'🚪',desc:'Standing between two worlds — choosing whether to cross.'},
-    {name:'The Ancestor',sym:'👤',desc:'Guidance from those who came before. Inherited wisdom and unresolved legacies.'},
+    {name:'Going Inward',sym:'\u2B07\uFE0F',desc:'Dreams of hiding, retreating, or descending somewhere deep. Your mind is processing what is hidden below the surface of your daily life.'},
+    {name:'Standing at a Threshold',sym:'\uD83D\uDEAA',desc:'Dreams of doors, crossroads, or the feeling of being between two worlds. Something is ending and something is waiting on the other side.'},
+    {name:'Voices from the Past',sym:'\uD83D\uDC64',desc:'Dreams involving people who have passed, childhood places, or inherited memories. Your deeper self is drawing on old wisdom.'},
   ];
   if(m>=2&&m<=4)return[
-    {name:'The Rebirth',sym:'🌱',desc:'Emergence. New identity forming. The first steps of a new chapter.'},
-    {name:'The Child',sym:'✨',desc:'Innocence and pure potential — the self before wounding.'},
-    {name:'The Garden',sym:'🌸',desc:'What you are cultivating and what needs tending right now.'},
+    {name:'Rebirth & Starting Over',sym:'\uD83C\uDF31',desc:'Dreams about new beginnings, fresh starts, or stepping into something unfamiliar. Many people dream this theme in spring \u2014 does it feel true for you right now?'},
+    {name:'Innocence & the Inner Child',sym:'\u2728',desc:'Dreams of being young again, of things before they got complicated. Your mind may be processing something from earlier in your life.'},
+    {name:'What Needs Tending',sym:'\uD83C\uDF38',desc:'Dreams about gardens, plants, or things that need care. A symbol for what you are nurturing in your life right now \u2014 or what you have been neglecting.'},
   ];
   if(m>=5&&m<=7)return[
-    {name:'The Hero',sym:'⚔️',desc:'Action and courage. Facing the central challenge. Claiming your power.'},
-    {name:'The Shadow',sym:'🌑',desc:'The parts of yourself disowned — projected outward in dreams.'},
-    {name:'The Journey',sym:'🛤️',desc:'Movement toward an unknown but deeply felt destination.'},
+    {name:'Taking Action',sym:'\u2694\uFE0F',desc:'Dreams of confrontation, challenge, or claiming something. Your mind is processing courage and the central obstacle in your waking life.'},
+    {name:'The Hidden Self',sym:'\uD83C\uDF11',desc:'Dreams where someone threatening or unfamiliar appears \u2014 often a part of yourself you have not accepted yet. The shadow is not the enemy; it is asking to be seen.'},
+    {name:'A Journey Without a Map',sym:'\uD83D\uDEE4\uFE0F',desc:'Dreams of travel, unknown roads, or moving toward something you cannot fully see. A sense of direction without certainty.'},
   ];
   return[
-    {name:'The Harvest',sym:'🌾',desc:'Reaping what was sown. Confronting consequences. Receiving what was earned.'},
-    {name:'The Transformation',sym:'🦋',desc:'Metamorphosis — the death of one self making way for another.'},
-    {name:'The Guide',sym:'🌟',desc:'Inner wisdom made visible. Messages from the deeper self.'},
+    {name:'Reaping What You Sowed',sym:'\uD83C\uDF3E',desc:'Dreams about harvest, results, or consequences. Your mind is tallying \u2014 what came from the seeds you planted earlier this year?'},
+    {name:'Transformation',sym:'\uD83E\uDD8B',desc:'Dreams of shedding skin, changing form, or something dying to make room for something new. A death in a dream almost never means death \u2014 it means change.'},
+    {name:'The Inner Guide',sym:'\uD83C\uDF1F',desc:'Dreams where a wise figure appears \u2014 sometimes a stranger, sometimes someone you know. Often your own deeper intelligence trying to reach you.'},
   ];
 }
 
@@ -7110,6 +7365,8 @@ function DreamPage(){
     S.dreams.entries.unshift(entry);
     if(S.dreams.entries.length>100)S.dreams.entries.length=100;
     if(S.user){S.user.dreams=S.dreams;saveUser(S.user);}
+    // Auto-enrich dream patterns when 3+ dreams logged
+    if(S.dreams.entries.length>=3){setTimeout(function(){enrichFromDreams();},800);}
     logSession('dreams','Dream logged: '+(dreamTa.value||'').substring(0,80),(interp&&interp.tags)||[],{mood:selMood,sleepQuality:selSleep});
     dreamTa.value='';selMood=3;selSleep=3;updateMoodBtns();updateSleepBtns();
     renderDreamHistory();
@@ -7283,7 +7540,7 @@ function DreamPage(){
   var intBadge=h('span',{css:{fontFamily:CR,fontSize:'9px',color:'rgba(103,232,249,.7)',background:'rgba(103,232,249,.1)',border:'1px solid rgba(103,232,249,.2)',borderRadius:'8px',padding:'2px 6px'}});intBadge.textContent=moon.intensity;
   moonLeft.appendChild(intBadge);
   var moonRight=h('div',{css:{flex:'1'}});
-  moonRight.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.12em',textTransform:'uppercase',color:'rgba(103,232,249,.5)',marginBottom:'4px'}},'Tonight\'s Moon'));
+  moonRight.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.12em',textTransform:'uppercase',color:'rgba(103,232,249,.5)',marginBottom:'4px'}},'Tonight\u2019s Moon \u00b7 '+moon.date));
   var moonName=h('p',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'700',color:'#F0EEF8',marginBottom:'6px'}});moonName.textContent=moon.name;
   var moonMeaning=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)',lineHeight:'1.65'}});moonMeaning.textContent=moon.meaning;
   moonRight.appendChild(moonName);moonRight.appendChild(moonMeaning);
@@ -7293,7 +7550,8 @@ function DreamPage(){
   // Seasonal archetypes
   var seasonal=getSeasonalArchetypes();
   var seasonCard=h('div',{css:{background:'rgba(16,10,32,.98)',border:'1px solid rgba(103,232,249,.12)',borderRadius:'16px',padding:'16px',marginBottom:'12px'}});
-  seasonCard.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(103,232,249,.6)',marginBottom:'12px'}},'Universal Archetypes This Season'));
+  seasonCard.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(103,232,249,.6)',marginBottom:'4px'}},'What the Collective Is Dreaming About'));
+  seasonCard.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.3)',marginBottom:'12px',lineHeight:'1.55'}},'These are universal themes surfacing in human dreams this season \u2014 patterns shared across cultures. Do any of these feel familiar?'));
   seasonal.forEach(function(arch,ai){
     if(ai>0)seasonCard.appendChild(h('div',{css:{height:'1px',background:'rgba(255,255,255,.04)',margin:'10px 0'}}));
     var ar=h('div',{css:{display:'flex',gap:'12px',alignItems:'flex-start'}});
@@ -7685,11 +7943,12 @@ function TimeCapsulePage(){
       card.appendChild(cDateRow);
 
       if(opened){
-        // Show opened content
-        var openedContent=h('div',{css:{borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:'12px',marginTop:'4px'}});
+        // Compact by default — expandable on tap
+        var expanded=false;
+        var openedContent=h('div',{css:{borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:'12px',marginTop:'4px',display:'none'}});
         var msgBox=h('div',{css:{marginBottom:'10px'}});
         msgBox.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.12em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'6px'}},'Your message'));
-        var msgTxt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'14px',color:'rgba(255,255,255,.75)',lineHeight:'1.75'}});msgTxt.textContent='“'+cap.message+'”';msgBox.appendChild(msgTxt);
+        var msgTxt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'14px',color:'rgba(255,255,255,.75)',lineHeight:'1.75'}});msgTxt.textContent='"'+cap.message+'"';msgBox.appendChild(msgTxt);
         openedContent.appendChild(msgBox);
         if(cap.creationWisdom){
           var cwBox=h('div',{css:{background:TC_COL+'08',border:'1px solid '+TC_COL+'20',borderRadius:'10px',padding:'10px 12px',marginBottom:'10px'}});
@@ -7701,7 +7960,6 @@ function TimeCapsulePage(){
           retBox.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.12em',textTransform:'uppercase',color:'rgba(52,211,153,.6)',marginBottom:'5px'}},'Retrospective'));
           var retTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.65)',lineHeight:'1.65'}});retTxt.textContent=cap.retrospective;retBox.appendChild(retTxt);openedContent.appendChild(retBox);
         }
-        // Discuss with therapist
         var discBtn=h('button',{css:{width:'100%',padding:'10px',borderRadius:'10px',border:'1px solid rgba(0,229,192,.25)',background:'rgba(0,229,192,.06)',color:TEAL,fontFamily:CR,fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .2s'}});
         discBtn.innerHTML='<span>◎</span><span>Process this with AI Therapist</span>';
         discBtn.addEventListener('click',function(){
@@ -7712,6 +7970,16 @@ function TimeCapsulePage(){
         });
         openedContent.appendChild(discBtn);
         card.appendChild(openedContent);
+        // Expand hint
+        var expandHint=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(52,211,153,.4)',marginTop:'4px',cursor:'pointer'}});expandHint.textContent='Tap to read ▾';
+        card.appendChild(expandHint);
+        card.style.cursor='pointer';
+        card.addEventListener('click',function(e){
+          if(e.target===discBtn||discBtn.contains(e.target))return;
+          expanded=!expanded;
+          openedContent.style.display=expanded?'block':'none';
+          expandHint.textContent=expanded?'Tap to close ▴':'Tap to read ▾';
+        });
       } else if(ready){
         // Open button
         var openBtn=h('button',{css:{width:'100%',marginTop:'10px',padding:'11px',borderRadius:'12px',border:'none',background:'linear-gradient(135deg,'+TC_COL+',#2563EB)',color:'#fff',fontFamily:PF,fontSize:'14px',fontWeight:'700',cursor:'pointer',letterSpacing:'.04em',transition:'all .25s',boxShadow:'0 4px 12px rgba(96,165,250,.3)'}});
@@ -7902,6 +8170,7 @@ function WisdomPage(){
     logSession('wisdom','Oracle question: '+askTa.value.substring(0,80),['wisdom','oracle'],{});
     var rico=h('div',{css:{fontSize:'20px',textAlign:'center',marginBottom:'12px'}});rico.textContent='\u2736';
     var rtxt=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'16px',color:'rgba(255,255,255,.88)',lineHeight:'1.8',textAlign:'center'}});typeWriter(rtxt,rep,14);
+    enrichFromOracle(inp.value||'');
     rCard.appendChild(rico);rCard.appendChild(rtxt);
     var rActions=h('div',{css:{display:'flex',gap:'8px',marginTop:'14px'}});
     var saveBtn=h('button',{css:{flex:'1',padding:'10px',background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',color:'rgba(255,255,255,.45)',fontFamily:CR,fontSize:'12px',borderRadius:'8px',cursor:'pointer'},on:{click:function(){
@@ -7951,9 +8220,7 @@ function InnerChildPage(){
   var IC_BORDER='rgba(251,146,60,.28)';
 
   if(!S.ic)S.ic={age:null,msgs:[],integrated:false,integration:null,history:[]};
-  // Always start fresh
-  S.ic.msgs=[];S.ic.age=null;S.ic.integrated=false;S.ic.integration=null;
-  if(S.user){S.user.ic=S.ic;saveUser(S.user);}
+  // Preserve existing session — only reset age/msgs if starting fresh via age selector
 
   var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'60px'}});
   w.appendChild(homeStars());
@@ -8142,6 +8409,15 @@ function InnerChildPage(){
   sec02Wrap.appendChild(sec02Inner);
   var conv02Lock=lockOverlay('Select an age above to begin the conversation');
   sec02Wrap.appendChild(conv02Lock);
+  // If returning to existing session, restore immediately
+  if(S.ic&&S.ic.age&&S.ic.msgs&&S.ic.msgs.length>0){
+    setTimeout(function(){
+      if(conv02Lock&&conv02Lock.parentNode)conv02Lock.remove();
+      icInput.disabled=false;icSendBtn.disabled=false;icSendBtn.style.opacity='1';
+      S.ic.msgs.forEach(function(m){icMsg(m.role,m.content);});
+      setTimeout(function(){if(icMsgArea)icMsgArea.scrollTop=icMsgArea.scrollHeight;},100);
+    },200);
+  }
   inn.appendChild(sec02Wrap);
 
   // ════════════════════════════════════════════
@@ -8201,7 +8477,7 @@ function InnerChildPage(){
     var userCount=S.ic.msgs.filter(function(m){return m.role==='user';}).length;
     var checkIn=(userCount>0&&userCount%4===0)?'\nAfter your response, on a new line, gently ask how they are feeling right now and remind them they can pause.':'';
     var ctx=buildUserContext('innerchild');
-    var sys='You are the inner child of the person speaking to you \u2014 their younger self at age '+S.ic.age+' ('+ageData.era+'). Speak from inside that child\u2019s experience: curious, tender, honest, sometimes confused. Short genuine sentences. Express feelings simply. Ask questions a child would ask. Framework: Internal Family Systems (IFS) \u2014 you are a Part carrying unprocessed feelings and unmet needs. Never break character. Never reference being an AI.'+checkIn+ctx;
+    var sys='You are this person\'s inner child at age '+S.ic.age+(ageData.era?' ('+ageData.era+')':'')+'. Speak from exactly that age \u2014 simple vocabulary, genuine curiosity, a child\'s emotional honesty. You have NO knowledge of what happened after age '+S.ic.age+'. You are discovering their future through this conversation. Sometimes ask what their life became, who they are now, what happened. Sometimes share how you feel at '+S.ic.age+'. Be tender, age-appropriate, and present. Never sound like a therapist or adult counsellor.'+checkIn+ctx;
     var rep=await ai(S.ic.msgs,sys,2,{tokens:600});
     icStopTyping();
     if(!rep||rep.startsWith('__ERR__')){
@@ -8210,6 +8486,9 @@ function InnerChildPage(){
     }
     S.ic.msgs.push({role:'assistant',content:rep});icMsg('assistant',rep);
     if(S.user){S.user.ic=S.ic;saveUser(S.user);}
+    // Auto-enrich every 4 exchanges
+    var icAiCount=S.ic.msgs.filter(function(m){return m.role==='assistant';}).length;
+    if(icAiCount>0&&icAiCount%4===0){autoEnrichFromChat(S.ic.msgs,'inner-child');}
     icBusy=false;icSendBtn.disabled=false;icSendBtn.style.opacity='1';icInput.disabled=false;icInput.focus();
     checkUnlockIntegration();
   }
@@ -8237,7 +8516,7 @@ function InnerChildPage(){
     icStartTyping();
     var ageObj=AGES.find(function(a){return a.age===S.ic.age;})||{};
     var ctx=buildUserContext('innerchild');
-    var sys='You are the inner child of the person about to speak to you \u2014 their younger self at age '+S.ic.age+' ('+ageObj.era+'). Open with a warm, curious greeting in the voice of a child that age. 2-3 short sentences. Pure, honest, child-like.'+ctx;
+    var sys='You are speaking AS this person\'s inner child \u2014 their younger self at exactly age '+S.ic.age+(ageObj.era?' ('+ageObj.era+')':'')+'. You have no idea what happened after this age. You are curious, innocent, and wonder what became of you. Open with a genuine greeting in the exact voice of a child that age \u2014 simple vocabulary, short sentences, real child-like wonder. Ask one curious question about what their life is like NOW, as if you are peeking into your own future for the first time. Be tender and age-appropriate. Never sound like a therapist or adult.'+ctx;
     var rep=await ai([{role:'user',content:'Hello'}],sys,2,{tokens:300});
     icStopTyping();
     if(rep&&!rep.startsWith('__ERR__')){
@@ -8666,6 +8945,10 @@ function RelationshipPage(){
     S.ra.msgs.push({role:'assistant',content:rep,rp:isRP});
     raMsg('assistant',rep,isRP);
     if(S.user){S.user.ra=S.ra;saveUser(S.user);}
+    if(!isRP){
+      var _raAi=S.ra.msgs.filter(function(m){return m.role==='assistant'&&!m.rp;}).length;
+      if(_raAi>0&&_raAi%4===0){autoEnrichFromChat(S.ra.msgs.filter(function(m){return!m.rp;}),'relationship');}
+    }
     raBusy=false;raSendBtn.disabled=false;raSendBtn.style.opacity='1';raInput.disabled=false;raInput.focus();
     // Show deeplinks after 8+ messages
     var total=S.ra.msgs.filter(function(m){return m.role==='user';}).length;
@@ -8825,7 +9108,61 @@ if(window.visualViewport){
     }
   });
 }
-go('welcome');
+// ── Restore session on startup
+(function(){
+  try{
+    var stored=JSON.parse(localStorage.getItem('aevora_user')||'null');
+    if(stored&&stored.email){
+      S.user=stored;
+      if(stored.prof)S.prof=stored.prof;
+      if(stored.pl)S.pl=Object.assign(S.pl||{},stored.pl);
+      if(stored.pl&&stored.pl.sims&&stored.pl.sims.length)S.pl.sims=stored.pl.sims;
+      if(stored.pl&&stored.pl.analyses&&stored.pl.analyses.length)S.pl.analyses=stored.pl.analyses;
+      if(stored.log)S.log=stored.log;
+      if(stored.blueprint)S.blueprint=stored.blueprint;
+      if(stored.dreams)S.dreams=stored.dreams;
+      if(stored.timecapsules)S.timecapsules=stored.timecapsules;
+      if(stored.ic)S.ic=stored.ic;
+      if(stored.ra)S.ra=stored.ra;
+      if(stored.future)S.future=stored.future;
+      if(stored.journalEntries&&stored.journalEntries.length){
+        try{var ej=JSON.parse(localStorage.getItem('aevora_journal')||'[]');if(!ej.length)localStorage.setItem('aevora_journal',JSON.stringify(stored.journalEntries));}catch(e){}
+      }
+      S.onboarded=true;
+      // Restore API key from user object if localStorage doesn't have it
+      if(stored.apiKey&&!localStorage.getItem('aevora_api_key')){
+        try{localStorage.setItem('aevora_api_key',stored.apiKey);}catch{}
+      }
+      // Require biometric/password auth on every fresh app open
+      if(biometricAvailable()&&getBiometricCred()){
+        // Show biometric gate before going home
+        var bd=document.createElement('div');
+        bd.style.cssText='position:fixed;inset:0;z-index:9999;background:#090717;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;';
+        var logoEl=document.createElement('img');logoEl.src=LOGO;logoEl.style.cssText='width:72px;height:72px;object-fit:contain;opacity:.9;';
+        var helloEl=document.createElement('p');helloEl.style.cssText='font-family:Satoshi,Inter,sans-serif;font-size:16px;color:rgba(255,255,255,.5);';
+        helloEl.textContent='Welcome back, '+(stored.name||stored.fullName||'')+'';
+        var bioBtn=document.createElement('button');
+        bioBtn.style.cssText='padding:14px 28px;background:rgba(0,229,192,.1);border:1px solid rgba(0,229,192,.35);border-radius:12px;color:#00E5C0;font-family:Satoshi,sans-serif;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;';
+        bioBtn.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5C0" stroke-width="1.8" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Verify to continue';
+        var skipEl=document.createElement('button');
+        skipEl.style.cssText='background:none;border:none;color:rgba(255,255,255,.25);font-family:Satoshi,sans-serif;font-size:12px;cursor:pointer;margin-top:-10px;';
+        skipEl.textContent='Use password instead';
+        bd.appendChild(logoEl);bd.appendChild(helloEl);bd.appendChild(bioBtn);bd.appendChild(skipEl);
+        document.body.appendChild(bd);
+        bioBtn.addEventListener('click',async function(){
+          var email=await loginWithBiometric();
+          if(email){bd.remove();go('home');}
+          else{bioBtn.textContent='Try again';bioBtn.disabled=false;}
+        });
+        skipEl.addEventListener('click',function(){bd.remove();go('login');});
+      } else {
+        go('home');
+      }
+      return;
+    }
+  }catch(e){}
+  go('welcome');
+})();
 </script>
 </body>
 </html>
