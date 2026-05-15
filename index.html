@@ -23,14 +23,14 @@ body{background:#090717;color:#F0EEF8;font-family:'Satoshi','Inter',sans-serif;m
 @keyframes av-drift{0%{transform:translate(0,0)}25%{transform:translate(4px,-6px)}50%{transform:translate(-3px,-10px)}75%{transform:translate(-6px,-4px)}100%{transform:translate(0,0)}}
 @keyframes av-drift2{0%{transform:translate(0,0)}33%{transform:translate(-8px,5px)}66%{transform:translate(6px,8px)}100%{transform:translate(0,0)}}
 @keyframes av-drift3{0%{transform:translate(0,0)}50%{transform:translate(10px,-8px)}100%{transform:translate(0,0)}}
-@keyframes av-card-glow-purple{0%,100%{box-shadow:0 0 20px rgba(167,139,250,.25),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(167,139,250,.48),0 4px 24px rgba(0,0,0,.35)}}
-@keyframes av-card-glow-gold{0%,100%{box-shadow:0 0 20px rgba(242,201,76,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(242,201,76,.44),0 4px 24px rgba(0,0,0,.35)}}
-@keyframes av-card-glow-cyan{0%,100%{box-shadow:0 0 20px rgba(34,211,238,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(34,211,238,.44),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-purple{0%,100%{box-shadow:0 0 20px rgba(167,139,250,.19),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(167,139,250,.42),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-card-glow-gold{0%,100%{box-shadow:0 0 20px rgba(242,201,76,.16),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(242,201,76,.37),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-card-glow-cyan{0%,100%{box-shadow:0 0 20px rgba(34,211,238,.16),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(34,211,238,.37),0 4px 22px rgba(0,0,0,.32)}}
 @keyframes av-stagger{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@keyframes av-card-glow-teal{0%,100%{box-shadow:0 0 20px rgba(0,229,192,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(0,229,192,.44),0 4px 24px rgba(0,0,0,.35)}}
-@keyframes av-card-glow-green{0%,100%{box-shadow:0 0 20px rgba(52,211,153,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(52,211,153,.44),0 4px 24px rgba(0,0,0,.35)}}
-@keyframes av-card-glow-pink{0%,100%{box-shadow:0 0 20px rgba(249,168,212,.2),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 36px rgba(249,168,212,.4),0 4px 24px rgba(0,0,0,.35)}}
-@keyframes av-card-glow-orange{0%,100%{box-shadow:0 0 20px rgba(251,146,60,.2),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 36px rgba(251,146,60,.4),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-teal{0%,100%{box-shadow:0 0 20px rgba(0,229,192,.16),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(0,229,192,.37),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-card-glow-green{0%,100%{box-shadow:0 0 20px rgba(52,211,153,.17),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(52,211,153,.38),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-card-glow-pink{0%,100%{box-shadow:0 0 19px rgba(249,168,212,.15),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 31px rgba(249,168,212,.34),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-card-glow-orange{0%,100%{box-shadow:0 0 19px rgba(251,146,60,.15),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 31px rgba(251,146,60,.34),0 4px 22px rgba(0,0,0,.32)}}
 @keyframes av-esp-ring{from{stroke-dashoffset:var(--ring-empty)}to{stroke-dashoffset:var(--ring-offset)}}
 .av-f{animation:av-f .45s ease forwards}
 .av-p{animation:av-p 3s ease-in-out infinite}
@@ -518,18 +518,22 @@ function applyTherapeuticVoice(utt){
   function setVoice(){
     var voices=window.speechSynthesis.getVoices();
     if(!voices.length)return false;
-    var pref=(S.user&&S.user.voicePref)||'female';
+    var pref=(S.user&&S.user.voicePref)||'';
     var allEn2=voices.filter(function(v){return v.lang.startsWith('en');});
     if(!allEn2.length)allEn2=voices;
     var chosen;
-    if(pref==='male'){
-      chosen=allEn2.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||
-             allEn2.find(function(v){return v.name.toLowerCase().includes('male');})||
-             allEn2[1]||allEn2[0];
-    } else {
-      chosen=allEn2.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||
-             allEn2.find(function(v){return v.name.toLowerCase().includes('female');})||
-             allEn2[0];
+    // Exact name match (user picked a specific voice from the list)
+    if(pref&&pref!=='male'&&pref!=='female'){
+      chosen=voices.find(function(v){return v.name===pref;});
+    }
+    // Legacy fallback for old 'male'/'female' string
+    if(!chosen){
+      if(pref==='male'){
+        chosen=allEn2.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||
+               allEn2.find(function(v){return v.name.toLowerCase().includes('male');})||allEn2[1]||allEn2[0];
+      } else {
+        chosen=allEn2.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||allEn2[0];
+      }
     }
     if(chosen){utt.voice=chosen;return true;}
     var fallback=getTherapeuticVoice();
@@ -5035,39 +5039,53 @@ function SettingsPage(){
     // Voice dropdown
     inner.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(252,211,77,.6)',marginBottom:'8px'}},'AI Voice'));
     var sel=document.createElement('select');
-    sel.style.cssText='width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#F0EEF8;font-family:Satoshi,Inter,sans-serif;font-size:14px;padding:10px 12px;border-radius:12px;margin-bottom:12px;cursor:pointer;outline:none;transition:all .25s;';
-    var voices=window.speechSynthesis.getVoices();
-    var allEn=voices.filter(function(v){return v.lang.startsWith('en');});
-    if(!allEn.length)allEn=voices;
-    var femaleV=allEn.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||allEn[0];
-    var maleV=allEn.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|aaron|arthur|oliver|richard|mark|ryan|google uk english male|microsoft david|microsoft mark|microsoft ryan/i.test(v.name);})||allEn.find(function(v){return v.name.toLowerCase().includes('male');})||allEn.find(function(v){return v!==femaleV&&v.lang.startsWith('en-GB');})||allEn.find(function(v){return v!==femaleV;})||allEn[0];
-    var savedPref=(S.user&&S.user.voicePref)||'';
-    if(!voices.length){
-      var opt=document.createElement('option');opt.textContent='Loading voices...';sel.appendChild(opt);
-      window.speechSynthesis.addEventListener('voiceschanged',function(){populateVoicePanel();},{once:true});
-    } else {
-      [{label:'Female Voice',v:femaleV,gender:'female'},{label:'Male Voice',v:maleV,gender:'male'}].forEach(function(o){
-        if(!o.v)return;
-        var opt=document.createElement('option');opt.value=o.gender;opt.textContent=o.label;
-        if(o.gender===savedPref)opt.selected=true;
+    sel.style.cssText='width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#F0EEF8;font-family:Satoshi,Inter,sans-serif;font-size:14px;padding:10px 12px;border-radius:12px;margin-bottom:4px;cursor:pointer;outline:none;transition:all .25s;';
+
+    var allVoices=window.speechSynthesis.getVoices();
+    var engVoices=allVoices.filter(function(v){return v.lang.startsWith('en');});
+    if(!engVoices.length)engVoices=allVoices;
+
+    var savedName=(S.user&&S.user.voicePref)||'';
+
+    function buildOptions(){
+      sel.innerHTML='';
+      if(!engVoices.length){
+        var opt=document.createElement('option');opt.textContent='Loading voices…';sel.appendChild(opt);
+        return;
+      }
+      engVoices.forEach(function(v){
+        var opt=document.createElement('option');
+        opt.value=v.name;
+        opt.textContent=v.name;
+        if(v.name===savedName)opt.selected=true;
         sel.appendChild(opt);
       });
-      // Respect saved gender preference; default to female
-      if(savedPref==='male'){sel.value='male';}else{sel.value='female';}
+      // If saved name not found, default to first voice
+      if(savedName&&!engVoices.find(function(v){return v.name===savedName;})){
+        sel.selectedIndex=0;
+      }
     }
-    // Show actual voice name being used
-    var voiceNameEl=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)',marginBottom:'10px',marginTop:'-6px'}});
-    function updateVoiceNameEl(){
-      var v=sel.value==='male'?maleV:femaleV;
-      voiceNameEl.textContent=v?'Using: '+v.name:'No voice found';
-    }
-    updateVoiceNameEl();
-    sel.addEventListener('change',updateVoiceNameEl);
-    inner.appendChild(sel);
-    inner.appendChild(voiceNameEl);
 
-    // Speed + Pitch sliders in a row
-    var sliders=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'14px'}});
+    if(!allVoices.length){
+      var loadOpt=document.createElement('option');loadOpt.textContent='Loading voices…';sel.appendChild(loadOpt);
+      window.speechSynthesis.addEventListener('voiceschanged',function(){
+        allVoices=window.speechSynthesis.getVoices();
+        engVoices=allVoices.filter(function(v){return v.lang.startsWith('en');});
+        if(!engVoices.length)engVoices=allVoices;
+        buildOptions();
+      },{once:true});
+    } else {
+      buildOptions();
+    }
+    inner.appendChild(sel);
+
+    // Helper: get currently selected voice object
+    function getSelectedVoice(){
+      return engVoices.find(function(v){return v.name===sel.value;})||engVoices[0]||null;
+    }
+
+    // Speed + Pitch sliders
+    var sliders=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'14px',marginTop:'12px'}});
     function mkCompactSlider(label,min,max,step,defVal,key){
       var wrap=h('div',{});
       var top=h('div',{css:{display:'flex',justifyContent:'space-between',marginBottom:'5px'}});
@@ -5082,12 +5100,10 @@ function SettingsPage(){
       });
       wrap.appendChild(top);wrap.appendChild(s);return wrap;
     }
-    // Set rate/pitch defaults only — never override user's voice choice
     if(!S.user)S.user={};
     if(!S.user.voiceRate)S.user.voiceRate=0.8;
     if(!S.user.voicePitch)S.user.voicePitch=0.65;
-    // Only set female as default if no voice has been chosen yet
-    if(!S.user.voicePref){S.user.voicePref='female';saveUser(S.user);}
+    if(!S.user.voicePref&&engVoices.length){S.user.voicePref=engVoices[0].name;saveUser(S.user);}
     sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(S.user.voiceRate||0.8).toFixed(2),'voiceRate'));
     sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(S.user.voicePitch||0.65).toFixed(2),'voicePitch'));
     inner.appendChild(sliders);
@@ -5102,16 +5118,15 @@ function SettingsPage(){
       utt.rate=parseFloat(S.user&&S.user.voiceRate||0.8);
       utt.pitch=parseFloat(S.user&&S.user.voicePitch||0.65);
       utt.volume=0.93;
-      // Use the voice objects already found in this panel (closure)
-      utt.voice = sel.value==='male' ? maleV : femaleV;
-      if(utt.voice)window.speechSynthesis.speak(utt);
+      var v=getSelectedVoice();
+      if(v)utt.voice=v;
+      window.speechSynthesis.speak(utt);
     });
     var saveBtn=h('button',{css:{flex:'1',padding:'10px',borderRadius:'10px',border:'none',background:'linear-gradient(135deg,'+GOLD+',#E5A800)',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'700',cursor:'pointer',transition:'all .2s'}});
     saveBtn.textContent='Save';
     saveBtn.addEventListener('click',function(){
       if(!S.user)S.user={};
-      S.user.voicePref=sel.value; // 'male' or 'female'
-      // Also persist current slider values explicitly
+      S.user.voicePref=sel.value; // exact voice name
       S.user.voiceRate=parseFloat(S.user.voiceRate||0.8);
       S.user.voicePitch=parseFloat(S.user.voicePitch||0.65);
       saveUser(S.user);
