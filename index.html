@@ -23,10 +23,14 @@ body{background:#090717;color:#F0EEF8;font-family:'Satoshi','Inter',sans-serif;m
 @keyframes av-drift{0%{transform:translate(0,0)}25%{transform:translate(4px,-6px)}50%{transform:translate(-3px,-10px)}75%{transform:translate(-6px,-4px)}100%{transform:translate(0,0)}}
 @keyframes av-drift2{0%{transform:translate(0,0)}33%{transform:translate(-8px,5px)}66%{transform:translate(6px,8px)}100%{transform:translate(0,0)}}
 @keyframes av-drift3{0%{transform:translate(0,0)}50%{transform:translate(10px,-8px)}100%{transform:translate(0,0)}}
-@keyframes av-card-glow-purple{0%,100%{box-shadow:0 0 18px rgba(167,139,250,.12),0 4px 20px rgba(0,0,0,.3)}50%{box-shadow:0 0 28px rgba(167,139,250,.22),0 4px 20px rgba(0,0,0,.3)}}
-@keyframes av-card-glow-gold{0%,100%{box-shadow:0 0 18px rgba(242,201,76,.1),0 4px 20px rgba(0,0,0,.3)}50%{box-shadow:0 0 28px rgba(242,201,76,.2),0 4px 20px rgba(0,0,0,.3)}}
-@keyframes av-card-glow-cyan{0%,100%{box-shadow:0 0 18px rgba(34,211,238,.1),0 4px 20px rgba(0,0,0,.3)}50%{box-shadow:0 0 28px rgba(34,211,238,.2),0 4px 20px rgba(0,0,0,.3)}}
+@keyframes av-card-glow-purple{0%,100%{box-shadow:0 0 20px rgba(167,139,250,.25),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(167,139,250,.48),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-gold{0%,100%{box-shadow:0 0 20px rgba(242,201,76,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(242,201,76,.44),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-cyan{0%,100%{box-shadow:0 0 20px rgba(34,211,238,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(34,211,238,.44),0 4px 24px rgba(0,0,0,.35)}}
 @keyframes av-stagger{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes av-card-glow-teal{0%,100%{box-shadow:0 0 20px rgba(0,229,192,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(0,229,192,.44),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-green{0%,100%{box-shadow:0 0 20px rgba(52,211,153,.22),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 38px rgba(52,211,153,.44),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-pink{0%,100%{box-shadow:0 0 20px rgba(249,168,212,.2),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 36px rgba(249,168,212,.4),0 4px 24px rgba(0,0,0,.35)}}
+@keyframes av-card-glow-orange{0%,100%{box-shadow:0 0 20px rgba(251,146,60,.2),0 4px 24px rgba(0,0,0,.35)}50%{box-shadow:0 0 36px rgba(251,146,60,.4),0 4px 24px rgba(0,0,0,.35)}}
 @keyframes av-esp-ring{from{stroke-dashoffset:var(--ring-empty)}to{stroke-dashoffset:var(--ring-offset)}}
 .av-f{animation:av-f .45s ease forwards}
 .av-p{animation:av-p 3s ease-in-out infinite}
@@ -1653,8 +1657,19 @@ function mkModCard4(m, onClick){
     display:'flex',flexDirection:'column',alignItems:'center',
     textAlign:'center',
     cursor:'pointer',
-    transition:'all .25s',position:'relative',minHeight:'118px',
+    transition:'all .25s',position:'relative',overflow:'hidden',minHeight:'118px',
   }});
+
+  // Animated glow per module color
+  var _glowMap={therapist:'purple',future:'green',innerchild:'orange',relationship:'pink',parallellives:'gold',dreams:'cyan',blueprint:'gold',wisdom:'cyan',timecapsule:'teal',journal:'purple'};
+  var _gc=_glowMap[m.id]||'teal';
+  var _dur={purple:4,green:4.5,orange:4.2,pink:4.8,gold:4.5,cyan:5,teal:4.3}[_gc]||4.5;
+  card.style.animation='av-card-glow-'+_gc+' '+_dur+'s ease-in-out infinite';
+  // Inner glow orbs
+  var _colMap={purple:'167,139,250',green:'52,211,153',orange:'251,146,60',pink:'249,168,212',gold:'242,201,76',cyan:'34,211,238',teal:'0,229,192'};
+  var _rgb=_colMap[_gc]||'0,229,192';
+  card.appendChild(h('div',{css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.28),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite'}}));
+  card.appendChild(h('div',{css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.18),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite'}}));
   // i-button — identity color
   const info=h('div',{css:{position:'absolute',top:'7px',right:'7px',width:'18px',height:'18px',borderRadius:'50%',border:'1px solid '+col+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:col,cursor:'pointer',zIndex:'2',background:col+'10'}});
   info.textContent='i';
@@ -2378,10 +2393,12 @@ function Home(){
   // ── EVENING REFLECTION CARD
   const dp=getDailyPrompt();
   var _periodLabels={morning:'MORNING REFLECTION',afternoon:'AFTERNOON CHECK-IN',evening:'EVENING REFLECTION',night:'NIGHT CONTEMPLATION'};
-  const tjCard=h('div',{css:{background:'linear-gradient(135deg,rgba(242,201,76,.06),rgba(20,12,40,0.95))',border:'1px solid rgba(242,201,76,.2)',borderRadius:'16px',padding:'16px',marginBottom:'12px',cursor:'pointer',transition:'all .2s',animation:'av-card-glow-gold 4.5s ease-in-out .5s infinite, av-stagger .6s ease .24s both'},on:{click:function(){
+  const tjCard=h('div',{css:{background:'linear-gradient(135deg,rgba(242,201,76,.06),rgba(20,12,40,0.95))',border:'1px solid rgba(242,201,76,.2)',borderRadius:'16px',padding:'16px',marginBottom:'12px',cursor:'pointer',transition:'all .2s',position:'relative',overflow:'hidden',animation:'av-card-glow-gold 4.5s ease-in-out .5s infinite, av-stagger .6s ease .24s both'},on:{click:function(){
     S.th.msgs=[{r:'a',t:"I'm here with you. Let's sit with today's question together: \n\n\""+dp.q+"\"\n\nTake your time. There's no right answer — only your honest one."}];
     go('therapist');
   }}});
+  tjCard.appendChild(h('div',{css:{position:'absolute',width:'200px',height:'200px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.35),transparent 70%)',top:'-50px',right:'-30px',pointerEvents:'none',animation:'av-drift 11s ease-in-out infinite'}}));
+  tjCard.appendChild(h('div',{css:{position:'absolute',width:'90px',height:'90px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.25),transparent 70%)',bottom:'-10px',left:'20px',pointerEvents:'none',animation:'av-drift3 8s ease-in-out infinite'}}));
   tjCard.addEventListener('mouseenter',function(){tjCard.style.borderColor='rgba(242,201,76,.35)';tjCard.style.background='linear-gradient(135deg,rgba(242,201,76,.1),rgba(24,14,46,0.98))';tjCard.style.boxShadow='0 0 32px rgba(242,201,76,.2)';});
   tjCard.addEventListener('mouseleave',function(){tjCard.style.borderColor='rgba(242,201,76,.2)';tjCard.style.background='linear-gradient(135deg,rgba(242,201,76,.06),rgba(20,12,40,0.95))';tjCard.style.boxShadow='';});
   var tjTopRow=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}});
@@ -2433,7 +2450,9 @@ function Home(){
     try{wd=JSON.parse(localStorage.getItem(todayKey)||'null');}catch(e){}
     function renderWisdomInPlaceholder(data){
       wisdomPlaceholder.innerHTML='';
-      var wCard=h('div',{css:{background:'rgba(34,211,238,.06)',border:'1px solid rgba(34,211,238,.2)',borderRadius:'16px',padding:'16px',marginBottom:'16px',cursor:'pointer',transition:'all .2s',animation:'av-card-glow-cyan 5s ease-in-out 1s infinite'}});
+      var wCard=h('div',{css:{background:'rgba(34,211,238,.06)',border:'1px solid rgba(34,211,238,.2)',borderRadius:'16px',padding:'16px',marginBottom:'16px',cursor:'pointer',transition:'all .2s',position:'relative',overflow:'hidden',animation:'av-card-glow-cyan 5s ease-in-out 1s infinite'}});
+      wCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.36),transparent 70%)',top:'-40px',right:'-20px',pointerEvents:'none',animation:'av-drift2 10s ease-in-out infinite'}}));
+      wCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.26),transparent 70%)',bottom:'-15px',left:'15px',pointerEvents:'none',animation:'av-drift 14s ease-in-out infinite'}}));
       wCard.addEventListener('mouseenter',function(){wCard.style.borderColor='rgba(34,211,238,.4)';wCard.style.background='rgba(34,211,238,.1)';wCard.style.boxShadow='0 0 32px rgba(34,211,238,.2)';});
       wCard.addEventListener('mouseleave',function(){wCard.style.borderColor='rgba(34,211,238,.2)';wCard.style.background='rgba(34,211,238,.06)';wCard.style.boxShadow='';});
       wCard.addEventListener('click',function(){go('wisdom');});
@@ -5021,7 +5040,7 @@ function SettingsPage(){
     var allEn=voices.filter(function(v){return v.lang.startsWith('en');});
     if(!allEn.length)allEn=voices;
     var femaleV=allEn.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||allEn[0];
-    var maleV=allEn.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||allEn.find(function(v){return v!==femaleV;})||allEn[0];
+    var maleV=allEn.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|aaron|arthur|oliver|richard|mark|ryan|google uk english male|microsoft david|microsoft mark|microsoft ryan/i.test(v.name);})||allEn.find(function(v){return v.name.toLowerCase().includes('male');})||allEn.find(function(v){return v!==femaleV&&v.lang.startsWith('en-GB');})||allEn.find(function(v){return v!==femaleV;})||allEn[0];
     var savedPref=(S.user&&S.user.voicePref)||'';
     if(!voices.length){
       var opt=document.createElement('option');opt.textContent='Loading voices...';sel.appendChild(opt);
@@ -5036,7 +5055,16 @@ function SettingsPage(){
       // Respect saved gender preference; default to female
       if(savedPref==='male'){sel.value='male';}else{sel.value='female';}
     }
+    // Show actual voice name being used
+    var voiceNameEl=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)',marginBottom:'10px',marginTop:'-6px'}});
+    function updateVoiceNameEl(){
+      var v=sel.value==='male'?maleV:femaleV;
+      voiceNameEl.textContent=v?'Using: '+v.name:'No voice found';
+    }
+    updateVoiceNameEl();
+    sel.addEventListener('change',updateVoiceNameEl);
     inner.appendChild(sel);
+    inner.appendChild(voiceNameEl);
 
     // Speed + Pitch sliders in a row
     var sliders=h('div',{css:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'14px'}});
@@ -5074,22 +5102,9 @@ function SettingsPage(){
       utt.rate=parseFloat(S.user&&S.user.voiceRate||0.8);
       utt.pitch=parseFloat(S.user&&S.user.voicePitch||0.65);
       utt.volume=0.93;
-      // Find voice by gender (sel.value is 'male' or 'female')
-      var allV=window.speechSynthesis.getVoices();
-      var engV=allV.filter(function(v){return v.lang.startsWith('en');});
-      if(!engV.length)engV=allV;
-      var chosen;
-      if(sel.value==='male'){
-        chosen=engV.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||
-               engV.find(function(v){return v.name.toLowerCase().includes('male');})||
-               engV[1]||engV[0];
-      } else {
-        chosen=engV.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||
-               engV.find(function(v){return v.name.toLowerCase().includes('female');})||
-               engV[0];
-      }
-      if(chosen)utt.voice=chosen;
-      window.speechSynthesis.speak(utt);
+      // Use the voice objects already found in this panel (closure)
+      utt.voice = sel.value==='male' ? maleV : femaleV;
+      if(utt.voice)window.speechSynthesis.speak(utt);
     });
     var saveBtn=h('button',{css:{flex:'1',padding:'10px',borderRadius:'10px',border:'none',background:'linear-gradient(135deg,'+GOLD+',#E5A800)',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'700',cursor:'pointer',transition:'all .2s'}});
     saveBtn.textContent='Save';
@@ -6813,7 +6828,7 @@ function FuturePage(){
     {y:30, label:'30 years', desc:'Transformed',  detail:'A lifetime\u2019s worth of answers. Wistful, clear-eyed, unafraid to be honest about regrets and gratitude.'},
   ];
 
-  var selectedHorizon=S.future.horizon||null;
+  var selectedHorizon=null; // Always start unselected — user must pick horizon to begin/resume
   var horizonCards=[];
 
   var descPanel=h('div',{css:{background:'rgba(20,13,38,.7)',border:'1px solid '+FS_BORDER,borderRadius:'14px',padding:'14px 16px',marginBottom:'20px',minHeight:'52px',transition:'all .3s'}});
@@ -6865,11 +6880,6 @@ function FuturePage(){
   customYearCard.addEventListener('click',function(){customYearInput.focus();});
   hRow.appendChild(customYearCard);
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)',marginBottom:'12px',textAlign:'center',letterSpacing:'.04em'}},'Enter any year between 1 and 50 in the custom box'));
-  // Set initial desc if restoring
-  if(selectedHorizon){
-    var _h=HORIZONS.find(function(o){return o.y===selectedHorizon;});
-    if(_h){descEra.textContent=_h.label+' \u2014 '+_h.desc;descEra.style.display='block';descTxt.textContent=_h.detail;descTxt.style.color='rgba(255,255,255,.65)';descTxt.style.fontStyle='normal';}
-  }
   inn.appendChild(hRow);
   inn.appendChild(descPanel);
 
