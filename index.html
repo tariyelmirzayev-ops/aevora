@@ -951,9 +951,11 @@ function LoginPage(){
     if(!S.pl)S.pl={};
     if(!S.pl.sims||!S.pl.sims.length){try{var ss=JSON.parse(localStorage.getItem('aevora_sims')||'[]');if(ss.length){S.pl.sims=ss;}}catch(e){}}
     if(!S.pl.analyses||!S.pl.analyses.length){try{var sa=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');if(sa.length){S.pl.analyses=sa;}}catch(e){}}
-    // Therapist history fallback
-    if(S.th&&(!S.th.history||!S.th.history.length)&&(!S.th.msgs||S.th.msgs.length<=1)){
-      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th){S.th=_th;}}catch(e){}
+    // Therapist history — restore from user object first, then backup key
+    if(stored.th&&stored.th.msgs&&stored.th.msgs.length>1)S.th=stored.th;
+    else if(stored.th&&stored.th.history&&stored.th.history.length)S.th=stored.th;
+    if(!S.th||S.th.msgs.length<=1){
+      try{var _th=JSON.parse(localStorage.getItem('aevora_th')||'null');if(_th&&(_th.msgs&&_th.msgs.length>1||_th.history&&_th.history.length)){S.th=_th;}}catch(e){}
     }
     if(stored.log)S.log=stored.log;
     // Restore Oracle wisdom daily keys from user backup
@@ -5069,11 +5071,24 @@ function SettingsPage(){
     previewBtn.addEventListener('click',function(){
       window.speechSynthesis.cancel();
       var utt=new SpeechSynthesisUtterance('I am here with you. Take a breath. What would you like to explore today?');
-      utt.rate=(S.user&&S.user.voiceRate)||0.8;
-      utt.pitch=(S.user&&S.user.voicePitch)||0.65;
+      utt.rate=parseFloat(S.user&&S.user.voiceRate||0.8);
+      utt.pitch=parseFloat(S.user&&S.user.voicePitch||0.65);
       utt.volume=0.93;
-      var v=voices.find(function(v){return v.name===sel.value;});
-      if(v)utt.voice=v;
+      // Find voice by gender (sel.value is 'male' or 'female')
+      var allV=window.speechSynthesis.getVoices();
+      var engV=allV.filter(function(v){return v.lang.startsWith('en');});
+      if(!engV.length)engV=allV;
+      var chosen;
+      if(sel.value==='male'){
+        chosen=engV.find(function(v){return /david|alex|daniel|fred|bruce|tom|james|google uk english male/i.test(v.name);})||
+               engV.find(function(v){return v.name.toLowerCase().includes('male');})||
+               engV[1]||engV[0];
+      } else {
+        chosen=engV.find(function(v){return /samantha|karen|victoria|susan|kate|emma|ava|allison|zira|google uk english female/i.test(v.name);})||
+               engV.find(function(v){return v.name.toLowerCase().includes('female');})||
+               engV[0];
+      }
+      if(chosen)utt.voice=chosen;
       window.speechSynthesis.speak(utt);
     });
     var saveBtn=h('button',{css:{flex:'1',padding:'10px',borderRadius:'10px',border:'none',background:'linear-gradient(135deg,'+GOLD+',#E5A800)',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'700',cursor:'pointer',transition:'all .2s'}});
@@ -5081,6 +5096,9 @@ function SettingsPage(){
     saveBtn.addEventListener('click',function(){
       if(!S.user)S.user={};
       S.user.voicePref=sel.value; // 'male' or 'female'
+      // Also persist current slider values explicitly
+      S.user.voiceRate=parseFloat(S.user.voiceRate||0.8);
+      S.user.voicePitch=parseFloat(S.user.voicePitch||0.65);
       saveUser(S.user);
       saveBtn.textContent='✓ Saved';
       setTimeout(function(){saveBtn.textContent='Save';},1800);
@@ -7014,10 +7032,7 @@ function FuturePage(){
   sec02Wrap.appendChild(lock02);
   inn.appendChild(sec02Wrap);
 
-  // Auto-unlock if returning to an existing session
-  if(selectedHorizon){
-    setTimeout(function(){unlockConversation();},100);
-  }
+  // History is preserved in S.future — user selects horizon to resume or start fresh
 
   // ══════════════════════
   // SECTION 03 — What They Told You
@@ -7117,10 +7132,12 @@ function FuturePage(){
     videoCallBtn.disabled=false;videoCallBtn.style.opacity='1';
     if(S.future.msgs.length===0){
       sendOpeningMsg();
+      // Only scroll when starting a new session
+      setTimeout(function(){sec02Wrap.scrollIntoView({behavior:'smooth',block:'start'});},400);
     } else {
       rebuildMsgs();
+      // Don't auto-scroll when resuming — let user read from top
     }
-    setTimeout(function(){sec02Wrap.scrollIntoView({behavior:'smooth',block:'start'});},400);
   }
 
   async function sendOpeningMsg(){
