@@ -10816,7 +10816,53 @@ window.addEventListener('popstate',function(e){
     _ws=_ws.charAt(0).toUpperCase()+_ws.slice(1);
     S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:_fu?_fu.t.substring(0,120):'Session',title:_ws.charAt(0).toUpperCase()+_ws.slice(1)});
     if(S.th.history.length>20)S.th.history.length=20;
+    S.th.msgs=[];
     if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(ex){}
+  }
+  // Save + clear future session on phone back
+  if(S.scr==='future'&&S.future&&S.future.msgs&&S.future.msgs.length>1){
+    if(!S.future.sessions)S.future.sessions=[];
+    var _fu_future=S.future.msgs.find(function(m){return m.role==='user';});
+    var _3u_future=S.future.msgs.filter(function(m){return m.role==='user';}).slice(0,3);
+    var _cb_future=_3u_future.map(function(m){return m.content||'';}).join(' ');
+    var _st_future=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw_future=_cb_future.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_st_future.test(w);});
+    var _ti_future=_kw_future.slice(0,3).join(' ')||(_fu_future?(_fu_future.content||'').trim().split(/\s+/).slice(0,3).join(' '):'Session');
+    _ti_future=_ti_future.charAt(0).toUpperCase()+_ti_future.slice(1);
+    S.future.sessions.unshift({ts:Date.now(),msgs:S.future.msgs.slice(),preview:_fu_future?(_fu_future.content||'').substring(0,120):'Session',title:_ti_future});
+    if(S.future.sessions.length>15)S.future.sessions.length=15;
+    S.future.msgs=[];
+    if(S.user){S.user.future=S.future;saveUser(S.user);}try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(ex){}
+  }
+  // Save + clear innerchild session on phone back
+  if(S.scr==='innerchild'&&S.ic&&S.ic.msgs&&S.ic.msgs.length>1){
+    if(!S.ic.sessions)S.ic.sessions=[];
+    var _fu_innerchild=S.ic.msgs.find(function(m){return m.role==='user';});
+    var _3u_innerchild=S.ic.msgs.filter(function(m){return m.role==='user';}).slice(0,3);
+    var _cb_innerchild=_3u_innerchild.map(function(m){return m.content||'';}).join(' ');
+    var _st_innerchild=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw_innerchild=_cb_innerchild.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_st_innerchild.test(w);});
+    var _ti_innerchild=_kw_innerchild.slice(0,3).join(' ')||(_fu_innerchild?(_fu_innerchild.content||'').trim().split(/\s+/).slice(0,3).join(' '):'Session');
+    _ti_innerchild=_ti_innerchild.charAt(0).toUpperCase()+_ti_innerchild.slice(1);
+    S.ic.sessions.unshift({ts:Date.now(),msgs:S.ic.msgs.slice(),preview:_fu_innerchild?(_fu_innerchild.content||'').substring(0,120):'Session',title:_ti_innerchild});
+    if(S.ic.sessions.length>15)S.ic.sessions.length=15;
+    S.ic.msgs=[];
+    if(S.user){S.user.ic=S.ic;saveUser(S.user);}try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(ex){}
+  }
+  // Save + clear relationship session on phone back
+  if(S.scr==='relationship'&&S.ra&&S.ra.msgs&&S.ra.msgs.length>1){
+    if(!S.ra.sessions)S.ra.sessions=[];
+    var _fu_relationship=S.ra.msgs.find(function(m){return m.role==='user';});
+    var _3u_relationship=S.ra.msgs.filter(function(m){return m.role==='user';}).slice(0,3);
+    var _cb_relationship=_3u_relationship.map(function(m){return m.content||'';}).join(' ');
+    var _st_relationship=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw_relationship=_cb_relationship.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_st_relationship.test(w);});
+    var _ti_relationship=_kw_relationship.slice(0,3).join(' ')||(_fu_relationship?(_fu_relationship.content||'').trim().split(/\s+/).slice(0,3).join(' '):'Session');
+    _ti_relationship=_ti_relationship.charAt(0).toUpperCase()+_ti_relationship.slice(1);
+    S.ra.sessions.unshift({ts:Date.now(),msgs:S.ra.msgs.slice(),preview:_fu_relationship?(_fu_relationship.content||'').substring(0,120):'Session',title:_ti_relationship});
+    if(S.ra.sessions.length>15)S.ra.sessions.length=15;
+    S.ra.msgs=[];
+    if(S.user){S.user.ra=S.ra;saveUser(S.user);}try{localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(ex){}
   }
   // Stop any active voice session before navigating away
   if(S.scr==='voicechat'){try{if(window._avStopVoice){window._avStopVoice();window._avStopVoice=null;}}catch(ex){}}
