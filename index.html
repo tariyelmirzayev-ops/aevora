@@ -366,7 +366,7 @@ function mkMicBtn(inp,col){
   if(!SR)return null;
   var btn=h('button',{css:{padding:'9px 11px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.14)',background:'transparent',color:'rgba(255,255,255,.45)',cursor:'pointer',transition:'all .2s',flexShrink:'0',display:'flex',alignItems:'center',justifyContent:'center'}});
   btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
-  var overlay=null,rec=null,finalText='',timer=null,secs=0;
+  var overlay=null,rec=null,finalText='',timer=null,secs=0,submitting=false;
   function buildOverlay(){
     var av=document.getElementById('av');
     var card=h('div',{css:{position:'fixed',bottom:'0',left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:'480px',background:'rgba(9,7,23,.97)',backdropFilter:'blur(24px) saturate(180%)',borderTop:'1px solid '+col+'28',borderRadius:'24px 24px 0 0',padding:'20px 24px 40px',zIndex:'9999',boxShadow:'0 -12px 50px rgba(0,0,0,.65)'}});
@@ -420,7 +420,20 @@ function mkMicBtn(inp,col){
       }
     };
     rec.onend=function(){
-      // Delay restart so audio buffer flushes — prevents replaying already-captured speech
+      // ── Submit path: ✓ was pressed — all onresult events have now fired ──
+      if(submitting){
+        submitting=false;
+        rec=null;
+        if(overlay&&overlay.parentNode)overlay.remove();overlay=null;
+        var text=finalText.trim();
+        if(text){
+          inp.value=text;
+          inp.dispatchEvent(new Event('input'));
+          try{inp.focus();}catch(e){}
+        }
+        return;
+      }
+      // ── Normal path: recognition paused mid-session — restart it ──
       if(overlay&&secs<120){
         setTimeout(function(){
           if(!overlay||secs>=120)return;
@@ -433,12 +446,21 @@ function mkMicBtn(inp,col){
   }
   function stopRec(submit){
     clearInterval(timer);timer=null;
-    try{if(rec)rec.stop();}catch(e){}rec=null;
-    if(overlay&&overlay.parentNode)overlay.remove();overlay=null;
-    if(submit&&finalText.trim()){
-      inp.value=finalText.trim();
-      inp.dispatchEvent(new Event('input'));
-      try{inp.focus();}catch(e){}
+    if(!submit){
+      // Cancel — silence onend so it doesn't restart, then clean up
+      try{if(rec){rec.onend=null;rec.stop();}}catch(e){}
+      rec=null;
+      if(overlay&&overlay.parentNode)overlay.remove();overlay=null;
+      return;
+    }
+    // Submit — set flag and stop; onend fires after final onresult, then commits
+    submitting=true;
+    try{if(rec)rec.stop();}catch(e){
+      // stop() threw — commit whatever we have right now
+      submitting=false;rec=null;
+      if(overlay&&overlay.parentNode)overlay.remove();overlay=null;
+      var t=finalText.trim();
+      if(t){inp.value=t;inp.dispatchEvent(new Event('input'));try{inp.focus();}catch(ex){}}
     }
   }
   btn.addEventListener('click',function(){if(overlay)stopRec(true);else startRec();});
@@ -536,19 +558,10 @@ function openContinuousPage(cfg){
         addMsg('assistant',rep);
         setStatus('speaking');
         var utt=new SpeechSynthesisUtterance(rep.substring(0,450));
-        utt.rate=(S.user&&S.user.voiceRate)||0.82;
-        utt.pitch=(S.user&&S.user.voicePitch)||0.65;
-        utt.volume=0.93;
-        var voices=window.speechSynthesis.getVoices();
-        var pref=(S.user&&S.user.voicePref)||'';
-        var engV=voices.filter(function(v){return v.lang.startsWith('en');});
-        if(!engV.length)engV=voices;
-        var chosen;
-        if(pref&&pref!=='male'&&pref!=='female')chosen=voices.find(function(v){return v.name===pref;});
-        if(!chosen)chosen=engV[0];
-        if(chosen)utt.voice=chosen;
         utt.onend=function(){if(state!=='idle')startListening();};
-        window.speechSynthesis.speak(utt);
+        utt.onerror=function(){if(state!=='idle')startListening();};
+        var _r=applyTherapeuticVoice(utt);
+        if(_r){window.speechSynthesis.cancel();window.speechSynthesis.speak(_r);}
       } else {
         if(state!=='idle')startListening();
       }
@@ -915,8 +928,8 @@ function getTherapeuticVoice(){
   return voices.find(function(v){return v.lang.startsWith('en');})||null;
 }
 function applyTherapeuticVoice(utt){
-  utt.rate=(S.user&&S.user.voiceRate)||0.8;
-  utt.pitch=(S.user&&S.user.voicePitch)||0.65;
+  utt.rate=(S.user&&S.user.voiceRate)||0.96;
+  utt.pitch=(S.user&&S.user.voicePitch)||1.00;
   utt.volume=0.93;
   function setVoice(){
     var voices=window.speechSynthesis.getVoices();
@@ -1607,7 +1620,7 @@ function SignupPage(){
     if(!ageChk.checked){errMsg.textContent='You must be 18 or older to use Aevora.';return;}
     if(!termsChk.checked){errMsg.textContent='Please accept the Terms of Service and Privacy Policy.';return;}
 
-    const user={name:name.split(' ')[0],fullName:name,email:email,password:pass,createdAt:Date.now()};
+    const user={name:name.split(' ')[0],fullName:name,email:email,password:pass,createdAt:Date.now(),voiceRate:0.96,voicePitch:1.00};
     saveUser(user);S.user=user;S.onboarded=false;
     if(biometricAvailable()){showBiometricSetup(user,function(){go('onboarding');});}
     else{go('onboarding');}
@@ -3120,6 +3133,8 @@ function OngoingChat(onEnd){
 function Therapist(){
   const w=h('div',{css:{position:'relative',minHeight:'100vh',display:'flex',flexDirection:'column',overflow:'hidden',background:'transparent'}});
   w.appendChild(homeStars());
+
+  // ── Header ──────────────────────────────────────────────────────
   const hdr=h('div',{css:{padding:'16px 20px',borderBottom:`1px solid ${C.bo}`,display:'flex',alignItems:'center',gap:'12px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.6)',backdropFilter:'blur(10px)'}});
   hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':S._returnTo==='modules'?'Modules':'Home',function(){if(S._fromSim){S._fromSim=false;go('parallellives');}else{go(S._returnTo||'home');}}));
   const hi=h('div',{css:{flex:'1',minWidth:'0'}});
@@ -3136,81 +3151,73 @@ function Therapist(){
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   w.appendChild(hdr);
   const tb=espBanner();if(tb)w.appendChild(tb);
-  // New session action — below header, not inside it
-  const newSessBar=h('div',{css:{padding:'8px 20px',borderBottom:'1px solid rgba(255,255,255,.04)',display:'flex',justifyContent:'flex-end',position:'relative',zIndex:'1'}});
-  const newSessBtn=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.28)',fontFamily:CR,fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',transition:'all .2s',padding:'4px 8px',borderRadius:'6px'}});
-  newSessBtn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New conversation';
-  newSessBtn.title='Start a new session (saves current)';
-  newSessBtn.addEventListener('mouseenter',function(){newSessBtn.style.color='rgba(0,229,192,.7)';newSessBtn.style.background='rgba(0,229,192,.06)';});
-  newSessBtn.addEventListener('mouseleave',function(){newSessBtn.style.color='rgba(255,255,255,.28)';newSessBtn.style.background='transparent';});
-  newSessBtn.addEventListener('click',function(){
-    if(S.th.msgs.length>2){
-      if(!S.th.history)S.th.history=[];
-      S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:S.th.msgs.find(function(m){return m.r==='u';})&&S.th.msgs.find(function(m){return m.r==='u';}).t.substring(0,60)||'Session'});
-      if(S.th.history.length>10)S.th.history.length=10;
-      if(S.user){S.user.th=S.th;saveUser(S.user);}
-    try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}
-    }
-    S.th.msgs=[{r:'a',t:"Welcome. I\u2019m here. What would you like to explore today?"}];
-    go('therapist');
-  });
-  newSessBar.appendChild(newSessBtn);
-  w.appendChild(newSessBar);
-  const md=h('div',{cls:'av-msgs',css:{flex:'1',overflowY:'auto',padding:'18px 20px',position:'relative',zIndex:'1'}});w.appendChild(md);
-  function msg(r,t){
+
+  // ── Tab bar ──────────────────────────────────────────────────────
+  const tabWrap=h('div',{css:{padding:'10px 20px 0',position:'relative',zIndex:'2',background:'rgba(13,11,35,0.85)',backdropFilter:'blur(10px)',flexShrink:'0'}});
+  const tabPill=h('div',{css:{display:'flex',background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'4px',marginBottom:'10px'}});
+  const ACT_BG='rgba(0,229,192,.13)',ACT_BORDER='1px solid rgba(0,229,192,.32)';
+  function mkTabBtn(label,active){
+    return h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:active?ACT_BORDER:'none',background:active?ACT_BG:'transparent',color:active?TEAL:'rgba(255,255,255,.4)',fontFamily:CR,fontSize:'13px',fontWeight:active?'600':'400',cursor:'pointer',transition:'all .2s'}},label);
+  }
+  const tab1Btn=mkTabBtn('New Conversation',true);
+  const tab2Btn=mkTabBtn('Previous Chats',false);
+  tabPill.appendChild(tab1Btn);tabPill.appendChild(tab2Btn);
+  tabWrap.appendChild(tabPill);
+  w.appendChild(tabWrap);
+
+  // ── Content area ─────────────────────────────────────────────────
+  const contentArea=h('div',{css:{flex:'1',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column'}});
+
+  // ── Panel 1: Active chat ─────────────────────────────────────────
+  const panel1=h('div',{css:{position:'absolute',top:'0',left:'0',right:'0',bottom:'0',display:'flex',flexDirection:'column'}});
+
+  const md=h('div',{cls:'av-msgs',css:{flex:'1',overflowY:'auto',padding:'18px 20px',position:'relative',zIndex:'1'}});
+  panel1.appendChild(md);
+
+  function msg(r,txt){
     const m=h('div',{cls:'av-f',css:{marginBottom:'18px',display:'flex',flexDirection:r==='u'?'row-reverse':'row',gap:'10px',alignItems:'flex-start'}});
     if(r==='a'){const av=h('div',{css:{width:'30px',height:'30px',borderRadius:'50%',background:C.tf,border:`1px solid ${C.tb}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'13px',color:C.tl}});av.textContent='◎';m.appendChild(av);}
     const b=h('div',{css:{maxWidth:'83%',padding:'11px 15px',borderRadius:r==='u'?'12px 12px 2px 12px':'12px 12px 12px 2px',background:r==='u'?'rgba(0,229,192,.09)':C.ca,border:`1px solid ${r==='u'?C.tb:C.bo}`,fontFamily:CR,fontSize:'16px',lineHeight:'1.75',color:'rgba(255,255,255,.85)'}});
-    if(r==='a'&&t){
-      typeWriter(b,t);
-      var thLWrap=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});
-      thLWrap.appendChild(mkListenBtn(t,C.tl));
-      b.appendChild(thLWrap);
-    }else{b.textContent=t||'';}
+    if(r==='a'&&txt){typeWriter(b,txt);var thLWrap=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});thLWrap.appendChild(mkListenBtn(txt,C.tl));b.appendChild(thLWrap);}
+    else{b.textContent=txt||'';}
     m.appendChild(b);md.appendChild(m);md.scrollTop=md.scrollHeight;
   }
-  // Welcome back card
-  if(S.th.msgs.length>2){
-    var wbCard=h('div',{css:{background:'rgba(0,229,192,.05)',border:'1px solid rgba(0,229,192,.15)',borderRadius:'12px',padding:'12px 14px',marginBottom:'16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px',animation:'av-f .4s ease'}});
-    var wbTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.5)',lineHeight:'1.5',flex:'1'}});wbTxt.textContent='Continuing your session \u2014 '+S.th.msgs.length+' messages so far.';
-    var wbFresh=h('button',{css:{fontFamily:CR,fontSize:'12px',color:TEAL,background:'transparent',border:'none',cursor:'pointer',flexShrink:'0',textDecoration:'underline'}});wbFresh.textContent='Start fresh';
-    wbFresh.addEventListener('click',function(){S.th.msgs=[{r:'a',t:"Welcome back. I’m here. What would you like to explore today?"}];go('therapist');});
-    wbCard.appendChild(wbTxt);wbCard.appendChild(wbFresh);md.appendChild(wbCard);
+
+  function saveCurrentToHistory(){
+    if(S.th.msgs.length<=2)return;
+    if(!S.th.history)S.th.history=[];
+    var firstU=S.th.msgs.find(function(m){return m.r==='u';});
+    S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:firstU?firstU.t.substring(0,80):'Session'});
+    if(S.th.history.length>20)S.th.history.length=20;
+    if(S.user){S.user.th=S.th;saveUser(S.user);}
+    try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}
   }
-  // Past sessions history
-  if(S.th.history&&S.th.history.length>0){
-    var histSection=h('div',{css:{marginBottom:'14px'}});
-    var histToggle=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.3)',fontFamily:CR,fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'5px',marginBottom:'8px',letterSpacing:'.06em'}});
-    histToggle.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>PAST SESSIONS ('+S.th.history.length+')';
-    var histList=h('div',{css:{display:'none'}});
-    histToggle.addEventListener('click',function(){var open=histList.style.display==='block';histList.style.display=open?'none':'block';});
-    S.th.history.forEach(function(sess,si){
-      var sc=h('div',{css:{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',borderRadius:'10px',padding:'10px 12px',marginBottom:'6px',transition:'all .2s',cursor:'pointer'}});
-      sc.addEventListener('mouseenter',function(){sc.style.background='rgba(0,229,192,.05)';sc.style.borderColor='rgba(0,229,192,.2)';});
-      sc.addEventListener('mouseleave',function(){sc.style.background='rgba(255,255,255,.03)';sc.style.borderColor='rgba(255,255,255,.07)';});
-      var st2=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}});
-      var sd2=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});
-      sd2.textContent=new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+sess.msgs.length+' messages';
-      st2.appendChild(sd2);
-      var sl=h('button',{css:{background:'transparent',border:'none',color:TEAL,fontFamily:CR,fontSize:'11px',cursor:'pointer',flexShrink:'0'}});sl.textContent='Resume';
-      sl.addEventListener('click',function(e){e.stopPropagation();S.th.msgs=sess.msgs;if(S.user){S.user.th=S.th;saveUser(S.user);}go('therapist');});
-      st2.appendChild(sl);sc.appendChild(st2);
-      var sp=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
-      sp.textContent=sess.preview||'Session';sc.appendChild(sp);
-      histList.appendChild(sc);
+
+  function renderMessages(){
+    while(md.firstChild)md.removeChild(md.firstChild);
+    // Start-fresh bar
+    var sfBar=h('div',{css:{display:'flex',justifyContent:'flex-end',marginBottom:'6px'}});
+    var sfBtn=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.22)',fontFamily:CR,fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',gap:'5px',padding:'4px 8px',borderRadius:'6px',transition:'all .2s',letterSpacing:'.03em'}});
+    sfBtn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New conversation';
+    sfBtn.title='Save current and start fresh';
+    sfBtn.addEventListener('mouseenter',function(){sfBtn.style.color='rgba(0,229,192,.7)';sfBtn.style.background='rgba(0,229,192,.06)';});
+    sfBtn.addEventListener('mouseleave',function(){sfBtn.style.color='rgba(255,255,255,.22)';sfBtn.style.background='transparent';});
+    sfBtn.addEventListener('click',function(){
+      saveCurrentToHistory();
+      S.th.msgs=[{r:'a',t:'Welcome. I\u2019m here. What would you like to explore today?'}];
+      renderMessages();
     });
-    histSection.appendChild(histToggle);histSection.appendChild(histList);md.appendChild(histSection);
+    sfBar.appendChild(sfBtn);md.appendChild(sfBar);
+    // Ongoing banner
+    if(S.th.msgs.length>2){
+      var wbCard=h('div',{css:{background:'rgba(0,229,192,.05)',border:'1px solid rgba(0,229,192,.12)',borderRadius:'10px',padding:'10px 14px',marginBottom:'14px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'10px',animation:'av-f .4s ease'}});
+      var wbTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.45)',lineHeight:'1.5',flex:'1'}});wbTxt.textContent='Continuing your session \u2014 '+(S.th.msgs.length)+' messages so far.';
+      wbCard.appendChild(wbTxt);md.appendChild(wbCard);
+    }
+    S.th.msgs.forEach(function(m2){msg(m2.r,m2.t);});
   }
-  S.th.msgs.forEach(m=>msg(m.r,m.t));
-  let tk=null,busy=false;
-  function sd(){if(tk){tk.remove();tk=null;}}
-  function sendHaptic(){haptic('light');}
-  function st(){tk=h('div',{css:{paddingLeft:'40px'}});tk.appendChild(dots());md.appendChild(tk);md.scrollTop=md.scrollHeight;}
-  // Safety note
-  const safeFooter=h('div',{css:{padding:'5px 16px',textAlign:'center',borderTop:'1px solid rgba(255,255,255,.04)'}});
-  const sfTxt=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.2)',letterSpacing:'.03em',lineHeight:'1.5'}});
-  sfTxt.textContent='Aevora supports reflection, not therapy. In crisis, contact your local emergency services or a crisis helpline in your country.';
-  safeFooter.appendChild(sfTxt);w.appendChild(safeFooter);
+
+  // Input bar
   const ft=h('div',{css:{padding:'14px 20px',borderTop:`1px solid ${C.bo}`,display:'flex',gap:'8px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.85)',backdropFilter:'blur(12px)',alignItems:'center'}});
   const inp=h('input',{cls:'av-in',placeholder:t('th_placeholder'),css:{flex:'1'}});
   const sb=h('button',{css:{flexShrink:'0',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+TEAL+',#00B4A0)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 12px rgba(0,229,192,.25)'}});
@@ -3219,29 +3226,182 @@ function Therapist(){
   sb.addEventListener('mouseleave',function(){sb.style.transform='scale(1)';sb.style.boxShadow='0 2px 12px rgba(0,229,192,.25)';});
   sb.addEventListener('mousedown',function(){sb.style.transform='scale(0.95)';});
   sb.addEventListener('mouseup',function(){sb.style.transform='scale(1.08)';});
-  var thVCfg={color:TEAL,title:'Voice Therapy',buildSysPrompt:function(){var ctx=buildUserContext('therapist');return 'You are Aevora\'s AI Therapist — deeply empathetic, trauma-informed, compassionate. Use reflective listening, gentle reframing, somatic awareness. Keep responses warm and concise.\n\n'+ctx;},getHistory:function(){return S.th.msgs.map(function(m){return{role:m.r==='u'?'user':'assistant',content:m.t};});},onExchange:function(uTxt,aTxt){if(uTxt)S.th.msgs.push({r:'u',t:uTxt});if(aTxt)S.th.msgs.push({r:'a',t:aTxt});if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}var uCount=S.th.msgs.filter(function(m){return m.r==='u';}).length;if(uCount>0&&uCount%5===0){extractTherapistInsights();}}};
+  var thVCfg={color:TEAL,title:'Voice Therapy',buildSysPrompt:function(){var ctx=buildUserContext('therapist');return 'You are Aevora\'s AI Therapist \u2014 deeply empathetic, trauma-informed, compassionate. Use reflective listening, gentle reframing, somatic awareness. Keep responses warm and concise.\n\n'+ctx;},getHistory:function(){return S.th.msgs.map(function(m2){return{role:m2.r==='u'?'user':'assistant',content:m2.t};});},onExchange:function(uTxt,aTxt){if(uTxt)S.th.msgs.push({r:'u',t:uTxt});if(aTxt)S.th.msgs.push({r:'a',t:aTxt});if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}var uCount=S.th.msgs.filter(function(m2){return m2.r==='u';}).length;if(uCount>0&&uCount%5===0){extractTherapistInsights();}}};
   var thVP=mkVoicePair(inp,thVCfg);
-  ft.appendChild(inp);ft.appendChild(thVP);ft.appendChild(sb);w.appendChild(ft);
-  async function send(){
-    const t=inp.value.trim();if(!t||busy)return;
-    inp.value='';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',t);
-    const ctx=buildUserContext('therapist');
-    const sys=`You are Aevora's AI Therapist — deeply empathetic, trauma-informed, compassionate. Be warm, therapeutic. Use reflective listening and gentle reframing. Keep responses 3-5 sentences. Poetic but grounded. End with a gentle question. If crisis detected, gently encourage them to contact their local emergency services or a crisis helpline.${ctx}`;
-    S.th.msgs.push({r:'u',t});st();
-    // Check for crisis before calling AI
-    const crisisCheck=checkCrisis(t);
-    if(crisisCheck.crisis){
-      sd();busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;
-      showCrisisModal(function(){inp.focus();});
-      return;
+  ft.appendChild(inp);ft.appendChild(thVP);ft.appendChild(sb);
+  panel1.appendChild(ft);
+
+  // ── Panel 2: Previous chats ──────────────────────────────────────
+  const panel2=h('div',{css:{position:'absolute',top:'0',left:'0',right:'0',bottom:'0',display:'none',overflowY:'auto',padding:'16px 20px'}});
+
+  function fmtSessDate(ts){
+    var d=new Date(ts);
+    var now=new Date();
+    var diffMs=now-d;
+    var diffMins=Math.floor(diffMs/60000);
+    var diffHrs=Math.floor(diffMs/3600000);
+    if(diffMins<60)return diffMins+'m ago';
+    if(diffHrs<24)return diffHrs+'h ago';
+    return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:d.getFullYear()!==now.getFullYear()?'numeric':undefined})+' \u00b7 '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function buildSessionCard(sess){
+    var expanded=false;
+    var card=h('div',{css:{background:'rgba(0,229,192,.03)',border:'1px solid rgba(0,229,192,.10)',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'border-color .2s'}});
+    // Header row
+    var hRow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+    var hLeft=h('div',{css:{flex:'1',minWidth:'0'}});
+    var metaRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'5px',flexWrap:'wrap'}});
+    var dateLbl=h('span',{css:{fontFamily:CR,fontSize:'11px',color:TEAL,opacity:'.75',letterSpacing:'.03em'}});
+    dateLbl.textContent=fmtSessDate(sess.ts);
+    var cntLbl=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)'}});
+    cntLbl.textContent='\u00b7 '+(sess.msgs?sess.msgs.length:0)+' messages';
+    metaRow.appendChild(dateLbl);metaRow.appendChild(cntLbl);
+    hLeft.appendChild(metaRow);
+    var prevTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.48)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0',lineHeight:'1.4'}});
+    prevTxt.textContent='\u201c'+(sess.preview||'Session')+'\u201d';
+    hLeft.appendChild(prevTxt);
+    hRow.appendChild(hLeft);
+    var chev=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+    chev.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+    hRow.appendChild(chev);
+    card.appendChild(hRow);
+    // Expanded body
+    var body=h('div',{css:{display:'none',borderTop:'1px solid rgba(0,229,192,.08)'}});
+    // Conversation bubbles
+    if(sess.msgs&&sess.msgs.length){
+      var bubWrap=h('div',{css:{padding:'14px 16px 10px',maxHeight:'340px',overflowY:'auto'}});
+      sess.msgs.forEach(function(m2){
+        var isU=m2.r==='u';
+        var bRow=h('div',{css:{display:'flex',flexDirection:isU?'row-reverse':'row',marginBottom:'10px',gap:'8px',alignItems:'flex-start'}});
+        if(!isU){var av2=h('div',{css:{width:'24px',height:'24px',borderRadius:'50%',background:C.tf,border:'1px solid '+C.tb,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'10px',color:C.tl}});av2.textContent='◎';bRow.appendChild(av2);}
+        var bub=h('div',{css:{maxWidth:'78%',padding:'9px 13px',borderRadius:isU?'12px 12px 2px 12px':'12px 12px 12px 2px',background:isU?'rgba(0,229,192,.08)':C.ca,border:'1px solid '+(isU?C.tb:C.bo),fontFamily:CR,fontSize:'13px',lineHeight:'1.65',color:'rgba(255,255,255,.72)'}});
+        bub.textContent=m2.t;bRow.appendChild(bub);bubWrap.appendChild(bRow);
+      });
+      body.appendChild(bubWrap);
     }
+    // Actions
+    var actRow=h('div',{css:{padding:'10px 16px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px'}});
+    var delBtn=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.2)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'6px 0',letterSpacing:'.03em',transition:'color .2s'}});
+    delBtn.textContent='Delete';
+    delBtn.addEventListener('mouseenter',function(){delBtn.style.color='rgba(255,80,80,.6)';});
+    delBtn.addEventListener('mouseleave',function(){delBtn.style.color='rgba(255,255,255,.2)';});
+    delBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(!S.th.history)return;
+      var idx2=S.th.history.indexOf(sess);
+      if(idx2>-1){S.th.history.splice(idx2,1);if(S.user){S.user.th=S.th;saveUser(S.user);}buildHistoryPanel();}
+    });
+    var resumeBtn=h('button',{css:{background:'linear-gradient(135deg,'+TEAL+',#00B4A0)',border:'none',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'500',padding:'8px 16px',borderRadius:'8px',cursor:'pointer',transition:'all .2s',boxShadow:'0 2px 10px rgba(0,229,192,.2)'}});
+    resumeBtn.textContent='Resume \u2192';
+    resumeBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      S.th.msgs=sess.msgs.slice();
+      if(S.user){S.user.th=S.th;saveUser(S.user);}
+      showTab(1);renderMessages();
+    });
+    actRow.appendChild(delBtn);actRow.appendChild(resumeBtn);
+    body.appendChild(actRow);
+    card.appendChild(body);
+    hRow.addEventListener('click',function(){
+      expanded=!expanded;
+      body.style.display=expanded?'block':'none';
+      chev.style.transform=expanded?'rotate(180deg)':'rotate(0)';
+      card.style.borderColor=expanded?'rgba(0,229,192,.28)':'rgba(0,229,192,.10)';
+      card.style.background=expanded?'rgba(0,229,192,.05)':'rgba(0,229,192,.03)';
+    });
+    return card;
+  }
+
+  function buildHistoryPanel(){
+    while(panel2.firstChild)panel2.removeChild(panel2.firstChild);
+    var history=S.th.history||[];
+    if(!history.length){
+      var empty=h('div',{css:{textAlign:'center',padding:'48px 20px'}});
+      empty.appendChild(h('div',{css:{fontSize:'32px',marginBottom:'14px',opacity:'.3'}},'\u{1F4AC}'));
+      var et=h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.35)',marginBottom:'8px'}});et.textContent='No previous sessions yet';empty.appendChild(et);
+      var es=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}});es.textContent='Your conversations will appear here after you start a new one.';empty.appendChild(es);
+      panel2.appendChild(empty);return;
+    }
+    // Group by time
+    var now2=new Date();
+    var groups=[
+      {label:'Today',sessions:[]},
+      {label:'Yesterday',sessions:[]},
+      {label:'This week',sessions:[]},
+      {label:'Earlier',sessions:[]}
+    ];
+    history.forEach(function(sess){
+      var d=new Date(sess.ts);
+      var today2=new Date(now2);today2.setHours(0,0,0,0);
+      var yesterday2=new Date(today2);yesterday2.setDate(today2.getDate()-1);
+      var weekAgo=new Date(today2);weekAgo.setDate(today2.getDate()-7);
+      var dDate=new Date(d);dDate.setHours(0,0,0,0);
+      if(dDate>=today2)groups[0].sessions.push(sess);
+      else if(dDate>=yesterday2)groups[1].sessions.push(sess);
+      else if(d>=weekAgo)groups[2].sessions.push(sess);
+      else groups[3].sessions.push(sess);
+    });
+    var hasAny=false;
+    groups.forEach(function(grp){
+      if(!grp.sessions.length)return;
+      hasAny=true;
+      var gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'16px 0 8px',paddingLeft:'2px'}});
+      gl.textContent=grp.label;panel2.appendChild(gl);
+      grp.sessions.forEach(function(sess){panel2.appendChild(buildSessionCard(sess));});
+    });
+    if(!hasAny){panel2.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.25)',textAlign:'center',padding:'32px 0'}},'No sessions found.'));}
+  }
+
+  contentArea.appendChild(panel1);contentArea.appendChild(panel2);
+  w.appendChild(contentArea);
+
+  // ── Safety footer ─────────────────────────────────────────────────
+  const safeFooter=h('div',{css:{padding:'5px 16px',textAlign:'center',borderTop:'1px solid rgba(255,255,255,.04)',flexShrink:'0',position:'relative',zIndex:'2'}});
+  const sfTxt=h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.2)',letterSpacing:'.03em',lineHeight:'1.5'}});
+  sfTxt.textContent='Aevora supports reflection, not therapy. In crisis, contact your local emergency services or a crisis helpline in your country.';
+  safeFooter.appendChild(sfTxt);w.appendChild(safeFooter);
+
+  // ── Tab switching ─────────────────────────────────────────────────
+  var activeTab=1;
+  function showTab(n){
+    activeTab=n;
+    if(n===1){
+      panel1.style.display='flex';panel2.style.display='none';
+      tab1Btn.style.background=ACT_BG;tab1Btn.style.border=ACT_BORDER;tab1Btn.style.color=TEAL;tab1Btn.style.fontWeight='600';
+      tab2Btn.style.background='transparent';tab2Btn.style.border='none';tab2Btn.style.color='rgba(255,255,255,.4)';tab2Btn.style.fontWeight='400';
+    }else{
+      panel1.style.display='none';panel2.style.display='block';
+      tab2Btn.style.background=ACT_BG;tab2Btn.style.border=ACT_BORDER;tab2Btn.style.color=TEAL;tab2Btn.style.fontWeight='600';
+      tab1Btn.style.background='transparent';tab1Btn.style.border='none';tab1Btn.style.color='rgba(255,255,255,.4)';tab1Btn.style.fontWeight='400';
+      buildHistoryPanel();
+    }
+  }
+  tab1Btn.addEventListener('click',function(){showTab(1);});
+  tab2Btn.addEventListener('click',function(){showTab(2);});
+
+  // ── Initial render ────────────────────────────────────────────────
+  renderMessages();
+
+  // ── Send logic ────────────────────────────────────────────────────
+  let tk=null,busy=false;
+  function sd(){if(tk){tk.remove();tk=null;}}
+  function st(){tk=h('div',{css:{paddingLeft:'40px'}});tk.appendChild(dots());md.appendChild(tk);md.scrollTop=md.scrollHeight;}
+  async function send(){
+    const txt=inp.value.trim();if(!txt||busy)return;
+    inp.value='';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',txt);
+    const ctx=buildUserContext('therapist');
+    const sys=`You are Aevora's AI Therapist \u2014 deeply empathetic, trauma-informed, compassionate. Be warm, therapeutic. Use reflective listening and gentle reframing. Keep responses 3-5 sentences. Poetic but grounded. End with a gentle question. If crisis detected, gently encourage them to contact their local emergency services or a crisis helpline.${ctx}`;
+    S.th.msgs.push({r:'u',t:txt});st();
+    const crisisCheck=checkCrisis(txt);
+    if(crisisCheck.crisis){sd();busy=false;sb.disabled=false;sb.style.opacity='1';inp.disabled=false;showCrisisModal(function(){inp.focus();});return;}
     if(crisisCheck.distress){showDistressBanner(md);}
-    const rep=await safeAI(S.th.msgs.map(m=>({role:m.r==='u'?'user':'assistant',content:m.t})),sys,function(){inp.focus();});
-    if(!rep){sd();busy=false;sb.disabled=false;inp.disabled=false;showRetryBanner(md,function(){inp.value=S.th.msgs.filter(m=>m.r==='u').pop()?.t||'';send();});return;}
-    sd();S.th.msgs.push({r:'a',t:rep});msg('a',rep);busy=false;sb.disabled=false;sb.style.opacity="1";inp.disabled=false;inp.focus();
+    const rep=await safeAI(S.th.msgs.map(m2=>({role:m2.r==='u'?'user':'assistant',content:m2.t})),sys,function(){inp.focus();});
+    if(!rep){sd();busy=false;sb.disabled=false;inp.disabled=false;showRetryBanner(md,function(){inp.value=S.th.msgs.filter(m2=>m2.r==='u').pop()?.t||'';send();});return;}
+    sd();S.th.msgs.push({r:'a',t:rep});msg('a',rep);busy=false;sb.disabled=false;sb.style.opacity='1';inp.disabled=false;inp.focus();
     if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}
-    logSession('therapist','Therapy session: '+t.substring(0,100),[],{});
-    var uCount=S.th.msgs.filter(function(m){return m.r==='u';}).length;
+    logSession('therapist','Therapy session: '+txt.substring(0,100),[],{});
+    var uCount=S.th.msgs.filter(function(m2){return m2.r==='u';}).length;
     if(uCount>0&&uCount%5===0){extractTherapistInsights();}
   }
   sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
@@ -5483,8 +5643,8 @@ function SettingsPage(){
     if(!S.user.voiceRate)S.user.voiceRate=0.8;
     if(!S.user.voicePitch)S.user.voicePitch=0.65;
     if(!S.user.voicePref&&engVoices.length){S.user.voicePref=engVoices[0].name;saveUser(S.user);}
-    sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(S.user.voiceRate||0.8).toFixed(2),'voiceRate'));
-    sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(S.user.voicePitch||0.65).toFixed(2),'voicePitch'));
+    sliders.appendChild(mkCompactSlider('Speed',0.5,1.4,0.02,(S.user.voiceRate||0.96).toFixed(2),'voiceRate'));
+    sliders.appendChild(mkCompactSlider('Pitch',0.5,1.5,0.05,(S.user.voicePitch||1.00).toFixed(2),'voicePitch'));
     inner.appendChild(sliders);
 
     // Preview + Save row
@@ -5494,8 +5654,8 @@ function SettingsPage(){
     previewBtn.addEventListener('click',function(){
       window.speechSynthesis.cancel();
       var utt=new SpeechSynthesisUtterance('I am here with you. Take a breath. What would you like to explore today?');
-      utt.rate=parseFloat(S.user&&S.user.voiceRate||0.8);
-      utt.pitch=parseFloat(S.user&&S.user.voicePitch||0.65);
+      utt.rate=parseFloat(S.user&&S.user.voiceRate||0.96);
+      utt.pitch=parseFloat(S.user&&S.user.voicePitch||1.00);
       utt.volume=0.93;
       var v=getSelectedVoice();
       if(v)utt.voice=v;
@@ -5506,8 +5666,8 @@ function SettingsPage(){
     saveBtn.addEventListener('click',function(){
       if(!S.user)S.user={};
       S.user.voicePref=sel.value; // exact voice name
-      S.user.voiceRate=parseFloat(S.user.voiceRate||0.8);
-      S.user.voicePitch=parseFloat(S.user.voicePitch||0.65);
+      S.user.voiceRate=parseFloat(S.user.voiceRate||0.96);
+      S.user.voicePitch=parseFloat(S.user.voicePitch||1.00);
       saveUser(S.user);
       saveBtn.textContent='✓ Saved';
       setTimeout(function(){saveBtn.textContent='Save';},1800);
@@ -9640,6 +9800,11 @@ function RelationshipPage(){
 
 // Init user from localStorage on load
 S.user=getUser();
+// Ensure voice defaults are set for any user missing them (first-run or pre-default users)
+if(S.user){
+  if(S.user.voiceRate===undefined||S.user.voiceRate===null)S.user.voiceRate=0.96;
+  if(S.user.voicePitch===undefined||S.user.voicePitch===null)S.user.voicePitch=1.00;
+}
 if(S.user&&S.user.prof)S.prof=S.user.prof;
 S.lang=getLang();
 // Android back button
