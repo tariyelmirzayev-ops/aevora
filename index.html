@@ -3232,6 +3232,7 @@ function Therapist(){
       var wbTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.45)',lineHeight:'1.5',flex:'1'}});wbTxt.textContent='Continuing your session \u2014 '+(S.th.msgs.length)+' messages so far.';
       wbCard.appendChild(wbTxt);md.appendChild(wbCard);
     }
+    if(!S.th.msgs.length){S.th.msgs=[{r:'a',t:'Welcome. I’m here. What would you like to explore today?'}];}
     S.th.msgs.forEach(function(m2){msg(m2.r,m2.t);});
   }
 
