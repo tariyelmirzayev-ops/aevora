@@ -23,14 +23,18 @@ body{background:#090717;color:#F0EEF8;font-family:'Satoshi','Inter',sans-serif;m
 @keyframes av-drift{0%{transform:translate(0,0)}25%{transform:translate(4px,-6px)}50%{transform:translate(-3px,-10px)}75%{transform:translate(-6px,-4px)}100%{transform:translate(0,0)}}
 @keyframes av-drift2{0%{transform:translate(0,0)}33%{transform:translate(-8px,5px)}66%{transform:translate(6px,8px)}100%{transform:translate(0,0)}}
 @keyframes av-drift3{0%{transform:translate(0,0)}50%{transform:translate(10px,-8px)}100%{transform:translate(0,0)}}
-@keyframes av-card-glow-purple{0%,100%{box-shadow:0 0 20px rgba(167,139,250,.19),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(167,139,250,.42),0 4px 22px rgba(0,0,0,.32)}}
-@keyframes av-card-glow-gold{0%,100%{box-shadow:0 0 20px rgba(242,201,76,.16),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(242,201,76,.37),0 4px 22px rgba(0,0,0,.32)}}
-@keyframes av-card-glow-cyan{0%,100%{box-shadow:0 0 20px rgba(34,211,238,.16),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(34,211,238,.37),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-card-glow-purple{0%,100%{box-shadow:0 0 18px rgba(167,139,250,.08),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 36px rgba(167,139,250,.42),0 4px 20px rgba(0,0,0,.28)}}
+@keyframes av-card-glow-gold{0%,100%{box-shadow:0 0 18px rgba(242,201,76,.07),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 36px rgba(242,201,76,.36),0 4px 20px rgba(0,0,0,.28)}}
+@keyframes av-card-glow-cyan{0%,100%{box-shadow:0 0 18px rgba(34,211,238,.07),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 36px rgba(34,211,238,.36),0 4px 20px rgba(0,0,0,.28)}}
 @keyframes av-stagger{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-@keyframes av-card-glow-teal{0%,100%{box-shadow:0 0 20px rgba(0,229,192,.16),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(0,229,192,.37),0 4px 22px rgba(0,0,0,.32)}}
-@keyframes av-card-glow-green{0%,100%{box-shadow:0 0 20px rgba(52,211,153,.17),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 32px rgba(52,211,153,.38),0 4px 22px rgba(0,0,0,.32)}}
-@keyframes av-card-glow-pink{0%,100%{box-shadow:0 0 19px rgba(249,168,212,.15),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 31px rgba(249,168,212,.34),0 4px 22px rgba(0,0,0,.32)}}
-@keyframes av-card-glow-orange{0%,100%{box-shadow:0 0 19px rgba(251,146,60,.15),0 4px 22px rgba(0,0,0,.32)}50%{box-shadow:0 0 31px rgba(251,146,60,.34),0 4px 22px rgba(0,0,0,.32)}}
+@keyframes av-orb-breathe{0%,100%{opacity:0.32}50%{opacity:1}}
+@keyframes av-orb-breathe2{0%,100%{opacity:0.24}50%{opacity:1}}
+@keyframes av-vbar{0%,100%{transform:scaleY(0.18);opacity:0.45}50%{transform:scaleY(1);opacity:1}}
+
+@keyframes av-card-glow-teal{0%,100%{box-shadow:0 0 18px rgba(0,229,192,.07),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 36px rgba(0,229,192,.36),0 4px 20px rgba(0,0,0,.28)}}
+@keyframes av-card-glow-green{0%,100%{box-shadow:0 0 18px rgba(52,211,153,.07),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 36px rgba(52,211,153,.38),0 4px 20px rgba(0,0,0,.28)}}
+@keyframes av-card-glow-pink{0%,100%{box-shadow:0 0 17px rgba(249,168,212,.06),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 34px rgba(249,168,212,.34),0 4px 20px rgba(0,0,0,.28)}}
+@keyframes av-card-glow-orange{0%,100%{box-shadow:0 0 17px rgba(251,146,60,.06),0 4px 20px rgba(0,0,0,.26)}50%{box-shadow:0 0 34px rgba(251,146,60,.34),0 4px 20px rgba(0,0,0,.28)}}
 @keyframes av-esp-ring{from{stroke-dashoffset:var(--ring-empty)}to{stroke-dashoffset:var(--ring-offset)}}
 .av-f{animation:av-f .45s ease forwards}
 .av-p{animation:av-p 3s ease-in-out infinite}
@@ -318,6 +322,343 @@ function mkMic(inp){
   });
   return btn;
 }
+
+// ══════════════════════════════════════════════════════════════════
+// STANDARD MIC BUTTON — overlay card, no interim text, 120s max
+// ══════════════════════════════════════════════════════════════════
+function mkMicBtn(inp,col){
+  col=col||TEAL;
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return null;
+  var btn=h('button',{css:{padding:'9px 11px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.14)',background:'transparent',color:'rgba(255,255,255,.45)',cursor:'pointer',transition:'all .2s',flexShrink:'0',display:'flex',alignItems:'center',justifyContent:'center'}});
+  btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+  var overlay=null,rec=null,finalText='',timer=null,secs=0;
+  function buildOverlay(){
+    var av=document.getElementById('av');
+    var card=h('div',{css:{position:'fixed',bottom:'0',left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:'480px',background:'rgba(9,7,23,.97)',backdropFilter:'blur(24px) saturate(180%)',borderTop:'1px solid '+col+'28',borderRadius:'24px 24px 0 0',padding:'20px 24px 40px',zIndex:'9999',boxShadow:'0 -12px 50px rgba(0,0,0,.65)'}});
+    var pill=h('div',{css:{width:'36px',height:'4px',background:'rgba(255,255,255,.12)',borderRadius:'2px',margin:'0 auto 22px'}});
+    card.appendChild(pill);
+    var wave=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'center',gap:'5px',height:'48px',marginBottom:'18px'}});
+    var durs=[0.55,0.75,0.6,0.85,0.65,0.5,0.7];
+    var dels=[0,0.12,0.06,0.18,0.09,0.22,0.04];
+    for(var i=0;i<7;i++){
+      var bar=h('div',{css:{width:'4px',height:'32px',background:col,borderRadius:'4px',animation:'av-vbar '+durs[i]+'s ease-in-out '+dels[i]+'s infinite'}});
+      wave.appendChild(bar);
+    }
+    card.appendChild(wave);
+    var timerEl=h('div',{css:{fontFamily:CR,fontSize:'26px',fontWeight:'300',color:'rgba(255,255,255,.88)',textAlign:'center',marginBottom:'26px',letterSpacing:'0.06em'}});
+    timerEl.textContent='0:00';
+    card.appendChild(timerEl);
+    var hint=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',textAlign:'center',marginBottom:'20px',letterSpacing:'.04em'}});
+    hint.textContent='Speak now — tap \u2713 when done';
+    card.appendChild(hint);
+    var btnRow=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0 20px'}});
+    var cancelBtn=h('button',{css:{width:'56px',height:'56px',borderRadius:'50%',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.55)',fontSize:'18px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}});
+    cancelBtn.textContent='\u2715';
+    cancelBtn.addEventListener('click',function(){stopRec(false);});
+    var submitBtn=h('button',{css:{width:'56px',height:'56px',borderRadius:'50%',background:'linear-gradient(135deg,'+col+','+col+'aa)',border:'none',color:'#0D0B23',fontSize:'22px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'700',transition:'all .2s',boxShadow:'0 4px 20px '+col+'40'}});
+    submitBtn.textContent='\u2713';
+    submitBtn.addEventListener('click',function(){stopRec(true);});
+    btnRow.appendChild(cancelBtn);btnRow.appendChild(submitBtn);
+    card.appendChild(btnRow);
+    av.appendChild(card);
+    return{card:card,timerEl:timerEl};
+  }
+  function startRec(){
+    window.speechSynthesis.cancel();
+    finalText='';secs=0;
+    var els=buildOverlay();
+    overlay=els.card;
+    var timerEl=els.timerEl;
+    timer=setInterval(function(){
+      secs++;
+      var m=Math.floor(secs/60),s=secs%60;
+      timerEl.textContent=m+':'+(s<10?'0':'')+s;
+      if(secs>=120){stopRec(true);}
+    },1000);
+    rec=new SR();
+    rec.continuous=true;rec.interimResults=false;rec.lang='en-US';rec.maxAlternatives=1;
+    rec.onresult=function(e){
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal){
+          finalText=deduplicateAppend(finalText, e.results[i][0].transcript);
+        }
+      }
+    };
+    rec.onend=function(){
+      // Delay restart so audio buffer flushes — prevents replaying already-captured speech
+      if(overlay&&secs<120){
+        setTimeout(function(){
+          if(!overlay||secs>=120)return;
+          try{rec.start();}catch(er){}
+        },280);
+      }
+    };
+    rec.onerror=function(e){if(e.error==='no-speech')return;};
+    try{rec.start();}catch(e){stopRec(false);}
+  }
+  function stopRec(submit){
+    clearInterval(timer);timer=null;
+    try{if(rec)rec.stop();}catch(e){}rec=null;
+    if(overlay&&overlay.parentNode)overlay.remove();overlay=null;
+    if(submit&&finalText.trim()){
+      inp.value=finalText.trim();
+      inp.dispatchEvent(new Event('input'));
+      try{inp.focus();}catch(e){}
+    }
+  }
+  btn.addEventListener('click',function(){if(overlay)stopRec(true);else startRec();});
+  return btn;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CONTINUOUS VOICE CHAT PAGE
+// ══════════════════════════════════════════════════════════════════
+function VoiceChatPage(){
+  return openContinuousPage(S._voiceCfg||{color:TEAL,title:'Voice Chat'});
+}
+function openContinuousPage(cfg){
+  var col=cfg.color||TEAL;
+  var title=cfg.title||'Voice Chat';
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'100px'}});
+  w.appendChild(homeStars());
+  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'120px'}});
+  w.appendChild(scrl);
+  var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
+  scrl.appendChild(inn);
+  // Header
+  var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}});
+  hdr.appendChild(mkBackBtn('Back',function(){
+    stopAll();
+    go(S._returnTo||'home');
+  }));
+  var htxt=h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.9)',flex:'1'}});
+  htxt.textContent=title;
+  hdr.appendChild(htxt);
+  // Status badge
+  var statusBadge=h('div',{css:{padding:'4px 10px',borderRadius:'20px',background:col+'18',border:'1px solid '+col+'30',fontFamily:CR,fontSize:'11px',color:col,letterSpacing:'.08em',transition:'all .3s'}});
+  statusBadge.textContent='LISTENING';
+  hdr.appendChild(statusBadge);
+  inn.appendChild(hdr);
+  // Messages area
+  var msgArea=h('div',{css:{marginBottom:'16px'}});
+  inn.appendChild(msgArea);
+  // Live speech preview area
+  var liveWrap=h('div',{css:{background:'rgba(255,255,255,.04)',border:'1px solid '+col+'22',borderRadius:'16px',padding:'14px 16px',marginBottom:'16px',minHeight:'54px',transition:'all .3s'}});
+  var liveTxt=h('p',{css:{fontFamily:CR,fontSize:'15px',color:'rgba(255,255,255,.35)',fontStyle:'italic',lineHeight:'1.6'}});
+  liveTxt.textContent='Listening\u2026';
+  liveWrap.appendChild(liveTxt);
+  inn.appendChild(liveWrap);
+  // Stop bar fixed at bottom
+  var stopBar=h('div',{css:{position:'fixed',bottom:'0',left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:'480px',padding:'16px 20px 32px',background:'rgba(9,7,23,.95)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,.06)',zIndex:'100',display:'flex',justifyContent:'center',gap:'12px'}});
+  var stopBtn=h('button',{css:{padding:'13px 36px',borderRadius:'100px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.65)',fontFamily:CR,fontSize:'14px',cursor:'pointer',transition:'all .2s'}});
+  stopBtn.textContent='\u25a0  Stop';
+  stopBar.appendChild(stopBtn);
+  w.appendChild(stopBar);
+  // State
+  var state='idle',rec=null,finalText='',pauseTimer=null,maxTimer=null;
+  function addMsg(role,text){
+    var isUser=role==='user';
+    var row=h('div',{css:{display:'flex',justifyContent:isUser?'flex-end':'flex-start',marginBottom:'12px',animation:'av-f .3s ease forwards'}});
+    var bub=h('div',{css:{maxWidth:'80%',padding:'11px 15px',borderRadius:isUser?'16px 16px 4px 16px':'16px 16px 16px 4px',background:isUser?col+'1a':'rgba(255,255,255,.06)',border:'1px solid '+(isUser?col+'30':'rgba(255,255,255,.08)'),fontFamily:CR,fontSize:'15px',color:'rgba(255,255,255,.85)',lineHeight:'1.65'}});
+    bub.textContent=text;
+    if(!isUser){var cvLW=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});cvLW.appendChild(mkListenBtn(text,col));bub.appendChild(cvLW);}
+    row.appendChild(bub);msgArea.appendChild(row);
+    setTimeout(function(){scrl.scrollTop=scrl.scrollHeight;},50);
+  }
+  function setStatus(st){
+    state=st;
+    var map={idle:'IDLE',listening:'● LISTENING',thinking:'◌ THINKING',speaking:'◉ SPEAKING'};
+    statusBadge.textContent=map[st]||st.toUpperCase();
+    statusBadge.style.background=st==='listening'?col+'25':st==='speaking'?col+'15':'rgba(255,255,255,.05)';
+    if(st==='listening'){
+      liveTxt.textContent='Listening\u2026';
+      liveTxt.style.color='rgba(255,255,255,.35)';
+      liveTxt.style.fontStyle='italic';
+      liveWrap.style.borderColor=col+'30';
+    } else if(st==='thinking'){
+      liveTxt.textContent='Thinking\u2026';
+      liveTxt.style.color='rgba(255,255,255,.25)';
+      liveTxt.style.fontStyle='italic';
+    } else if(st==='speaking'){
+      liveTxt.textContent='Speaking\u2026';
+      liveTxt.style.color=col;
+      liveTxt.style.fontStyle='italic';
+    }
+  }
+  async function sendToAI(text){
+    if(!text.trim()||state==='idle')return;
+    setStatus('thinking');
+    addMsg('user',text);
+    var sysPrompt=cfg.buildSysPrompt?cfg.buildSysPrompt():'You are a compassionate AI companion.';
+    var hist=cfg.getHistory?cfg.getHistory():[];
+    var callMsgs=hist.concat([{role:'user',content:text}]);
+    if(callMsgs.length>20)callMsgs=callMsgs.slice(-20);
+    try{
+      var rep=await ai(callMsgs,sysPrompt,1,{tokens:500});
+      if(rep&&!rep.startsWith('__ERR__')){
+        if(cfg.onExchange)cfg.onExchange(text,rep);
+        addMsg('assistant',rep);
+        setStatus('speaking');
+        var utt=new SpeechSynthesisUtterance(rep.substring(0,450));
+        utt.rate=(S.user&&S.user.voiceRate)||0.82;
+        utt.pitch=(S.user&&S.user.voicePitch)||0.65;
+        utt.volume=0.93;
+        var voices=window.speechSynthesis.getVoices();
+        var pref=(S.user&&S.user.voicePref)||'';
+        var engV=voices.filter(function(v){return v.lang.startsWith('en');});
+        if(!engV.length)engV=voices;
+        var chosen;
+        if(pref&&pref!=='male'&&pref!=='female')chosen=voices.find(function(v){return v.name===pref;});
+        if(!chosen)chosen=engV[0];
+        if(chosen)utt.voice=chosen;
+        utt.onend=function(){if(state!=='idle')startListening();};
+        window.speechSynthesis.speak(utt);
+      } else {
+        if(state!=='idle')startListening();
+      }
+    }catch(e){if(state!=='idle')startListening();}
+  }
+  function startListening(){
+    if(state==='idle')return;
+    setStatus('listening');
+    finalText='';
+    clearTimeout(maxTimer);
+    maxTimer=setTimeout(function(){if(finalText.trim())commitSpeech();},120000);
+    rec=new SR();
+    rec.continuous=true;rec.interimResults=true;rec.lang='en-US';rec.maxAlternatives=1;
+    rec.onresult=function(e){
+      var newFinal='',newInterim='';
+      for(var i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal)newFinal+=e.results[i][0].transcript;
+        else newInterim+=e.results[i][0].transcript;
+      }
+      if(newFinal){
+        finalText=deduplicateAppend(finalText, newFinal);
+        liveTxt.textContent=finalText.trim();
+        liveTxt.style.color='rgba(255,255,255,.78)';
+        liveTxt.style.fontStyle='normal';
+        liveWrap.style.borderColor=col+'50';
+        clearTimeout(pauseTimer);
+        pauseTimer=setTimeout(commitSpeech,3000);
+      } else if(newInterim){
+        liveTxt.textContent=deduplicateAppend(finalText,newInterim).trim();
+        liveTxt.style.color='rgba(255,255,255,.5)';
+        liveTxt.style.fontStyle='italic';
+      }
+    };
+    rec.onend=function(){
+      if(state==='listening'){
+        // Delay + fresh instance prevents audio buffer replay duplication
+        setTimeout(function(){
+          if(state!=='listening')return;
+          try{
+            rec=new SR();
+            rec.continuous=true;rec.interimResults=true;rec.lang='en-US';rec.maxAlternatives=1;
+            // Re-attach handlers inline via recursive call — safe because startListening re-sets rec
+          }catch(er){}
+          try{rec.start();}catch(er){}
+        },280);
+      }
+    };
+    rec.onerror=function(e){if(e.error==='no-speech')return;};
+    try{rec.start();}catch(e){setStatus('idle');}
+  }
+  function commitSpeech(){
+    clearTimeout(pauseTimer);clearTimeout(maxTimer);
+    try{if(rec)rec.stop();}catch(e){}rec=null;
+    var text=finalText.trim();
+    if(text)sendToAI(text);
+    else if(state!=='idle')startListening();
+  }
+  function stopAll(){
+    state='idle';
+    clearTimeout(pauseTimer);clearTimeout(maxTimer);
+    window.speechSynthesis.cancel();
+    try{if(rec)rec.stop();}catch(e){}rec=null;
+  }
+  stopBtn.addEventListener('click',function(){stopAll();go(S._returnTo||'home');});
+  // Start listening after brief delay
+  state='listening';
+  setTimeout(startListening,600);
+  return w;
+}
+function mkContinuousVoiceBtn(cfg){
+  if(!(window.SpeechRecognition||window.webkitSpeechRecognition))return null;
+  var col=cfg&&cfg.color||TEAL;
+  var btn=h('button',{css:{padding:'9px 11px',borderRadius:'10px',border:'1px solid rgba(255,255,255,.14)',background:'transparent',color:'rgba(255,255,255,.45)',cursor:'pointer',transition:'all .2s',flexShrink:'0',display:'flex',alignItems:'center',justifyContent:'center'}});
+  btn.title='Continuous voice chat';
+  btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M8 12a4 4 0 0 0 8 0"/><path d="M5 12a7 7 0 0 0 14 0"/><path d="M2 12a10 10 0 0 0 20 0"/></svg>';
+  btn.addEventListener('click',function(){
+    S._returnTo=S.scr||'home';
+    S._voiceCfg=cfg;
+    go('voicechat');
+  });
+  return btn;
+}
+function mkVoicePair(inp,cfg){
+  var wrap=h('div',{css:{display:'flex',gap:'5px',flexShrink:'0'}});
+  var mic=mkMicBtn(inp,cfg&&cfg.color);
+  if(mic)wrap.appendChild(mic);
+  if(cfg){var cont=mkContinuousVoiceBtn(cfg);if(cont)wrap.appendChild(cont);}
+  return wrap;
+}
+
+
+// ── Speech deduplication: removes overlapping words when appending new transcript
+function deduplicateAppend(existing, newText){
+  if(!newText||!newText.trim())return existing;
+  var ex=existing.trim(), nw=newText.trim();
+  if(!ex)return nw;
+  var exL=ex.toLowerCase(), nwL=nw.toLowerCase();
+  // Already contains the new text
+  if(exL.slice(-nwL.length)===nwL)return existing;
+  if(exL.includes(nwL))return existing;
+  // Partial overlap: tail of existing === head of new
+  var exW=ex.split(/\s+/), nwW=nw.split(/\s+/);
+  var maxOv=Math.min(exW.length, nwW.length, 12);
+  for(var ov=maxOv;ov>=1;ov--){
+    if(exW.slice(-ov).join(' ').toLowerCase()===nwW.slice(0,ov).join(' ').toLowerCase()){
+      var rest=nwW.slice(ov).join(' ');
+      return rest?ex+' '+rest:ex;
+    }
+  }
+  return ex+' '+nw;
+}
+
+
+// ── LISTEN BUTTON — plays any AI message via TTS ────────────────────────────
+var _listenActive=null; // currently playing listen button
+function mkListenBtn(text,col){
+  col=col||TEAL;
+  var spkSVG='<svg width=\"19\" height=\"15\" viewBox=\"0 0 52 40\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 14 L11 14 L21 5 L21 35 L11 26 L3 26 Z\"/><path d=\"M25 17 a5,5 0 0 1 0,6\"/><path d=\"M29 12 a11,11 0 0 1 0,16\"/><path d=\"M33 7 a16,16 0 0 1 0,26\"/></svg>';
+  var stopSVG='<svg width=\"13\" height=\"13\" viewBox=\"0 0 40 40\" fill=\"currentColor\"><rect x=\"8\" y=\"8\" width=\"24\" height=\"24\" rx=\"5\"/></svg>';
+  var btn=h('button',{css:{display:'inline-flex',alignItems:'center',justifyContent:'center',background:'transparent',border:'none',color:col,cursor:'pointer',padding:'4px',borderRadius:'6px',transition:'all .2s',opacity:'.82',flexShrink:'0',lineHeight:'1'}});
+  btn.innerHTML=spkSVG;
+  function reset(){btn.innerHTML=spkSVG;btn.style.color=col;btn.style.opacity='.82';btn.style.animation='';}
+  function activate(){btn.innerHTML=stopSVG;btn.style.color=col;btn.style.opacity='1';btn.style.animation='av-pulse 1.2s ease-in-out infinite';}
+  btn.addEventListener('click',function(e){
+    e.stopPropagation();
+    if(_listenActive===btn){
+      window.speechSynthesis.cancel();
+      _listenActive=null;reset();return;
+    }
+    if(_listenActive){
+      window.speechSynthesis.cancel();
+      var prev=_listenActive;_listenActive=null;
+      prev.innerHTML=spkSVG;prev.style.opacity='.45';prev.style.animation='';
+    }
+    _listenActive=btn;activate();
+    var utt=new SpeechSynthesisUtterance(text.substring(0,600));
+    utt.onend=function(){if(_listenActive===btn){_listenActive=null;reset();}};
+    utt.onerror=function(){if(_listenActive===btn){_listenActive=null;reset();}};
+    applyTherapeuticVoice(utt);
+    if(utt.voice||window.speechSynthesis.getVoices().length)window.speechSynthesis.speak(utt);
+  });
+  return btn;
+}
+
 
 function getApiKey(){
   try{
@@ -1682,8 +2023,9 @@ function mkModCard4(m, onClick){
   // Inner glow orbs
   var _colMap={purple:'167,139,250',green:'52,211,153',orange:'251,146,60',pink:'249,168,212',gold:'242,201,76',cyan:'34,211,238',teal:'0,229,192'};
   var _rgb=_colMap[_gc]||'0,229,192';
-  card.appendChild(h('div',{css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.28),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite'}}));
-  card.appendChild(h('div',{css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.18),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite'}}));
+  var _orbDelay=(Math.random()*4).toFixed(1);
+  card.appendChild(h('div',{css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.30),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite, av-orb-breathe '+(parseInt(_dur)+2)+'s ease-in-out '+_orbDelay+'s infinite'}}));
+  card.appendChild(h('div',{css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.19),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite, av-orb-breathe2 '+(parseInt(_dur)+3)+'s ease-in-out '+_orbDelay+'s infinite'}}));
   // i-button — identity color
   const info=h('div',{css:{position:'absolute',top:'7px',right:'7px',width:'18px',height:'18px',borderRadius:'50%',border:'1px solid '+col+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:col,cursor:'pointer',zIndex:'2',background:col+'10'}});
   info.textContent='i';
@@ -1996,7 +2338,7 @@ function go(scr){
   const av=document.getElementById('av');
   av.innerHTML='';
   const mainScreens=['home','modules','journal','self','settings'];
-  const fns={login:LoginPage,signup:SignupPage,onboarding:OnboardingPage,welcome:Welcome,esp1:ESP1,esp2:ESP2,home:Home,therapist:Therapist,parallellives:PL,modules:ModulesPage,journal:JournalPage,self:SelfPage,settings:SettingsPage,future:FuturePage,wisdom:WisdomPage,blueprint:BlueprintPage,dreams:DreamPage,timecapsule:TimeCapsulePage,innerchild:InnerChildPage,relationship:RelationshipPage};
+  const fns={login:LoginPage,signup:SignupPage,onboarding:OnboardingPage,welcome:Welcome,esp1:ESP1,esp2:ESP2,home:Home,therapist:Therapist,parallellives:PL,modules:ModulesPage,journal:JournalPage,self:SelfPage,settings:SettingsPage,future:FuturePage,voicechat:VoiceChatPage,wisdom:WisdomPage,blueprint:BlueprintPage,dreams:DreamPage,timecapsule:TimeCapsulePage,innerchild:InnerChildPage,relationship:RelationshipPage};
   if(!fns[scr])return;
   var screen;
   try{screen=fns[scr]();}catch(e){
@@ -2097,13 +2439,18 @@ function ESP1(){
   sb.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
   sb.addEventListener('mouseenter',function(){if(!sb.disabled){sb.style.transform='scale(1.08)';sb.style.boxShadow='0 4px 18px rgba(0,229,192,.4)';}});
   sb.addEventListener('mouseleave',function(){sb.style.transform='scale(1)';sb.style.boxShadow='0 2px 12px rgba(0,229,192,.25)';});
-  const mic=mkMic(inp);
-  row.appendChild(inp);if(mic)row.appendChild(mic);row.appendChild(sb);ft.appendChild(row);w.appendChild(ft);
+  const espMic=mkMicBtn(inp,TEAL);
+  row.appendChild(inp);if(espMic)row.appendChild(espMic);row.appendChild(sb);ft.appendChild(row);w.appendChild(ft);
   function msg(r,t){
     const m=h('div',{cls:'av-f',css:{marginBottom:'18px',display:'flex',flexDirection:r==='u'?'row-reverse':'row',gap:'10px',alignItems:'flex-start'}});
     if(r==='a'){const av=h('div',{css:{width:'30px',height:'30px',borderRadius:'50%',background:C.tf,border:`1px solid ${C.tb}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'13px',color:C.tl}});av.textContent='◎';m.appendChild(av);}
     const b=h('div',{css:{maxWidth:'83%',padding:'11px 15px',borderRadius:r==='u'?'12px 12px 2px 12px':'12px 12px 12px 2px',background:r==='u'?'rgba(0,229,192,.09)':C.ca,border:`1px solid ${r==='u'?C.tb:C.bo}`,fontFamily:CR,fontSize:'16px',lineHeight:'1.75',color:'rgba(255,255,255,.85)'}});
-    if(r==='a'&&t){typeWriter(b,t);}else{b.textContent=t||'';}
+    if(r==='a'&&t){
+      typeWriter(b,t);
+      var thLWrap=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});
+      thLWrap.appendChild(mkListenBtn(t,C.tl));
+      b.appendChild(thLWrap);
+    }else{b.textContent=t||'';}
     m.appendChild(b);md.appendChild(m);md.scrollTop=md.scrollHeight;
   }
   let tk=null,busy=false;
@@ -2211,7 +2558,7 @@ function ESP2(){
       ta2.addEventListener('input',function(){S.e2.val=ta2.value;nb.disabled=!ta2.value.trim();});
       ta2.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.ctrlKey&&S.e2.val.toString().trim())nx();});
       e2wrap.appendChild(ta2);
-      var ta2Mic=mkMic(ta2);if(ta2Mic){ta2Mic.style.position='absolute';ta2Mic.style.right='6px';ta2Mic.style.top='6px';ta2Mic.style.padding='6px 8px';e2wrap.appendChild(ta2Mic);}
+      var ta2Mic=mkMicBtn(ta2,TEAL);if(ta2Mic){ta2Mic.style.position='absolute';ta2Mic.style.right='6px';ta2Mic.style.top='6px';ta2Mic.style.padding='6px 8px';e2wrap.appendChild(ta2Mic);}
       inn.appendChild(e2wrap);setTimeout(function(){ta2.focus();},50);
     }else{
       const inp=h('input',{cls:'av-in',placeholder:q.ph,type:q.type==='num'?'number':'text',css:{marginBottom:'28px',display:'block'}});
@@ -2343,7 +2690,9 @@ function Home(){
   (function(){
     var streak=getWritingStreak();
     var writtenToday=hasWrittenToday();
-    var djCard=h('div',{css:{background:'rgba(167,139,250,.06)',border:'1px solid rgba(167,139,250,.2)',borderRadius:'16px',padding:'16px',marginBottom:'12px',cursor:'pointer',transition:'all .2s',animation:'av-card-glow-purple 4s ease-in-out infinite, av-stagger .6s ease .18s both'}});
+    var djCard=h('div',{css:{background:'rgba(167,139,250,.06)',border:'1px solid rgba(167,139,250,.2)',borderRadius:'16px',padding:'16px',marginBottom:'12px',cursor:'pointer',transition:'all .2s',animation:'av-card-glow-purple 6.0s ease-in-out infinite, av-stagger .6s ease .18s both',position:'relative',overflow:'hidden'}});
+    djCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(167,139,250,.28),transparent 70%)',top:'-40px',right:'-40px',pointerEvents:'none',animation:'av-drift 9s ease-in-out infinite, av-orb-breathe 6s ease-in-out 0.3s infinite'}}));
+    djCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(167,139,250,.18),transparent 70%)',bottom:'-20px',left:'10px',pointerEvents:'none',animation:'av-drift2 12s ease-in-out infinite, av-orb-breathe2 6s ease-in-out 0.3s infinite'}}));
     djCard.addEventListener('mouseenter',function(){djCard.style.background='rgba(167,139,250,.12)';djCard.style.borderColor='rgba(167,139,250,.4)';djCard.style.boxShadow='0 0 32px rgba(167,139,250,.28)';});
     djCard.addEventListener('mouseleave',function(){djCard.style.background='rgba(167,139,250,.06)';djCard.style.borderColor='rgba(167,139,250,.2)';djCard.style.boxShadow='';});
     djCard.addEventListener('click',function(){go('journal');});
@@ -2411,8 +2760,8 @@ function Home(){
     S.th.msgs=[{r:'a',t:"I'm here with you. Let's sit with today's question together: \n\n\""+dp.q+"\"\n\nTake your time. There's no right answer — only your honest one."}];
     go('therapist');
   }}});
-  tjCard.appendChild(h('div',{css:{position:'absolute',width:'200px',height:'200px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.35),transparent 70%)',top:'-50px',right:'-30px',pointerEvents:'none',animation:'av-drift 11s ease-in-out infinite'}}));
-  tjCard.appendChild(h('div',{css:{position:'absolute',width:'90px',height:'90px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.25),transparent 70%)',bottom:'-10px',left:'20px',pointerEvents:'none',animation:'av-drift3 8s ease-in-out infinite'}}));
+  tjCard.appendChild(h('div',{css:{position:'absolute',width:'200px',height:'200px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.26),transparent 70%)',top:'-50px',right:'-30px',pointerEvents:'none',animation:'av-drift 11s ease-in-out infinite, av-orb-breathe 6.5s ease-in-out 3.2s infinite'}}));
+  tjCard.appendChild(h('div',{css:{position:'absolute',width:'90px',height:'90px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.16),transparent 70%)',bottom:'-10px',left:'20px',pointerEvents:'none',animation:'av-drift3 8s ease-in-out infinite, av-orb-breathe2 6.5s ease-in-out 3.2s infinite'}}));
   tjCard.addEventListener('mouseenter',function(){tjCard.style.borderColor='rgba(242,201,76,.35)';tjCard.style.background='linear-gradient(135deg,rgba(242,201,76,.1),rgba(24,14,46,0.98))';tjCard.style.boxShadow='0 0 32px rgba(242,201,76,.2)';});
   tjCard.addEventListener('mouseleave',function(){tjCard.style.borderColor='rgba(242,201,76,.2)';tjCard.style.background='linear-gradient(135deg,rgba(242,201,76,.06),rgba(20,12,40,0.95))';tjCard.style.boxShadow='';});
   var tjTopRow=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}});
@@ -2465,8 +2814,8 @@ function Home(){
     function renderWisdomInPlaceholder(data){
       wisdomPlaceholder.innerHTML='';
       var wCard=h('div',{css:{background:'rgba(34,211,238,.06)',border:'1px solid rgba(34,211,238,.2)',borderRadius:'16px',padding:'16px',marginBottom:'16px',cursor:'pointer',transition:'all .2s',position:'relative',overflow:'hidden',animation:'av-card-glow-cyan 5s ease-in-out 1s infinite'}});
-      wCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.36),transparent 70%)',top:'-40px',right:'-20px',pointerEvents:'none',animation:'av-drift2 10s ease-in-out infinite'}}));
-      wCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.26),transparent 70%)',bottom:'-15px',left:'15px',pointerEvents:'none',animation:'av-drift 14s ease-in-out infinite'}}));
+      wCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.26),transparent 70%)',top:'-40px',right:'-20px',pointerEvents:'none',animation:'av-drift2 10s ease-in-out infinite, av-orb-breathe 7s ease-in-out 1.8s infinite'}}));
+      wCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.16),transparent 70%)',bottom:'-15px',left:'15px',pointerEvents:'none',animation:'av-drift 14s ease-in-out infinite, av-orb-breathe2 7s ease-in-out 1.8s infinite'}}));
       wCard.addEventListener('mouseenter',function(){wCard.style.borderColor='rgba(34,211,238,.4)';wCard.style.background='rgba(34,211,238,.1)';wCard.style.boxShadow='0 0 32px rgba(34,211,238,.2)';});
       wCard.addEventListener('mouseleave',function(){wCard.style.borderColor='rgba(34,211,238,.2)';wCard.style.background='rgba(34,211,238,.06)';wCard.style.boxShadow='';});
       wCard.addEventListener('click',function(){go('wisdom');});
@@ -2720,45 +3069,19 @@ function OngoingChat(onEnd){
 function Therapist(){
   const w=h('div',{css:{position:'relative',minHeight:'100vh',display:'flex',flexDirection:'column',overflow:'hidden',background:'transparent'}});
   w.appendChild(homeStars());
-  const hdr=h('div',{css:{padding:'16px 20px',borderBottom:`1px solid ${C.bo}`,display:'flex',alignItems:'center',gap:'8px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.6)',backdropFilter:'blur(10px)'}});
+  const hdr=h('div',{css:{padding:'16px 20px',borderBottom:`1px solid ${C.bo}`,display:'flex',alignItems:'center',gap:'12px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.6)',backdropFilter:'blur(10px)'}});
   hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':S._returnTo==='modules'?'Modules':'Home',function(){if(S._fromSim){S._fromSim=false;go('parallellives');}else{go(S._returnTo||'home');}}));
   const hi=h('div',{css:{flex:'1',minWidth:'0'}});
   const thIcn=mkModIcon('therapist');thIcn.style.marginBottom='0';thIcn.style.width='36px';thIcn.style.height='36px';thIcn.style.borderRadius='10px';thIcn.style.flexShrink='0';
   const thRow=h('div',{css:{display:'flex',alignItems:'center',gap:'6px',minWidth:'0'}});thRow.appendChild(thIcn);
   const thTextCol=h('div',{css:{flex:'1',minWidth:'0'}});
-  const thH2=h('h2',{css:{fontFamily:PF,fontSize:'17px',fontWeight:'600',color:'#F0EEF8'}});thH2.textContent=t('th_title');thTextCol.appendChild(thH2);
+  const thH2=h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}});thH2.textContent=t('th_title');thTextCol.appendChild(thH2);
   thTextCol.appendChild(h('p',{css:{fontSize:'10px',color:C.tl,letterSpacing:'.1em',fontFamily:CR,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},t('th_subtitle')));
   thRow.appendChild(thTextCol);
   const thIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(0,229,192,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:TEAL,cursor:'pointer',background:'rgba(0,229,192,.06)',flexShrink:'0'}});thIBtn.textContent='i';
   thIBtn.addEventListener('click',function(){var _m=ALL_MODS.find(function(m){return m.id==='therapist';});if(_m)showModuleInfo(_m);});
   thRow.appendChild(thIBtn);hi.appendChild(thRow);
   hdr.appendChild(hi);
-  // Ongoing voice chat button
-  const voiceBtn=h('button',{css:{background:'rgba(0,229,192,.15)',border:'1px solid rgba(0,229,192,.4)',color:TEAL,fontFamily:CR,fontSize:'12px',fontWeight:'600',padding:'6px 10px',borderRadius:'20px',cursor:'pointer',transition:'all .2s',letterSpacing:'.04em',display:'flex',alignItems:'center',gap:'5px',flexShrink:'0'},on:{click:function(){
-    const SR2=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR2){
-      var errToast=document.createElement('p');
-      errToast.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(13,11,35,.95);border:1px solid rgba(0,229,192,.3);color:rgba(0,229,192,.8);font-family:Satoshi,sans-serif;font-size:13px;padding:10px 18px;border-radius:20px;z-index:9999;white-space:nowrap;';
-      errToast.textContent='Voice not supported in this browser. Try Chrome on Android.';
-      document.body.appendChild(errToast);setTimeout(function(){errToast.remove();},3500);return;
-    }
-    S.ongoing=true;
-    const _savedRT=S._returnTo;
-    const screen=OngoingChat(function(updatedMsgs){
-      S.ongoing=false;
-      S.th.msgs=updatedMsgs;
-      S._returnTo=_savedRT;
-      S.scr=_savedRT||'home';
-      go('therapist');
-    });
-    const av=document.getElementById('av');
-    av.innerHTML='';
-    av.appendChild(screen);
-  }}});
-  voiceBtn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="'+TEAL+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg><span>Voice</span>';
-  voiceBtn.title='Start ongoing voice conversation';
-  hdr.appendChild(voiceBtn);
-  // New conversation button moved below header
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   w.appendChild(hdr);
   const tb=espBanner();if(tb)w.appendChild(tb);
@@ -2787,7 +3110,12 @@ function Therapist(){
     const m=h('div',{cls:'av-f',css:{marginBottom:'18px',display:'flex',flexDirection:r==='u'?'row-reverse':'row',gap:'10px',alignItems:'flex-start'}});
     if(r==='a'){const av=h('div',{css:{width:'30px',height:'30px',borderRadius:'50%',background:C.tf,border:`1px solid ${C.tb}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'13px',color:C.tl}});av.textContent='◎';m.appendChild(av);}
     const b=h('div',{css:{maxWidth:'83%',padding:'11px 15px',borderRadius:r==='u'?'12px 12px 2px 12px':'12px 12px 12px 2px',background:r==='u'?'rgba(0,229,192,.09)':C.ca,border:`1px solid ${r==='u'?C.tb:C.bo}`,fontFamily:CR,fontSize:'16px',lineHeight:'1.75',color:'rgba(255,255,255,.85)'}});
-    if(r==='a'&&t){typeWriter(b,t);}else{b.textContent=t||'';}
+    if(r==='a'&&t){
+      typeWriter(b,t);
+      var thLWrap=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});
+      thLWrap.appendChild(mkListenBtn(t,C.tl));
+      b.appendChild(thLWrap);
+    }else{b.textContent=t||'';}
     m.appendChild(b);md.appendChild(m);md.scrollTop=md.scrollHeight;
   }
   // Welcome back card
@@ -2840,8 +3168,9 @@ function Therapist(){
   sb.addEventListener('mouseleave',function(){sb.style.transform='scale(1)';sb.style.boxShadow='0 2px 12px rgba(0,229,192,.25)';});
   sb.addEventListener('mousedown',function(){sb.style.transform='scale(0.95)';});
   sb.addEventListener('mouseup',function(){sb.style.transform='scale(1.08)';});
-  const mic=mkMic(inp);
-  ft.appendChild(inp);if(mic)ft.appendChild(mic);ft.appendChild(sb);w.appendChild(ft);
+  var thVCfg={color:TEAL,title:'Voice Therapy',buildSysPrompt:function(){var ctx=buildUserContext('therapist');return 'You are Aevora\'s AI Therapist — deeply empathetic, trauma-informed, compassionate. Use reflective listening, gentle reframing, somatic awareness. Keep responses warm and concise.\n\n'+ctx;},getHistory:function(){return S.th.msgs.map(function(m){return{role:m.r==='u'?'user':'assistant',content:m.t};});},onExchange:function(uTxt,aTxt){if(uTxt)S.th.msgs.push({r:'u',t:uTxt});if(aTxt)S.th.msgs.push({r:'a',t:aTxt});if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}var uCount=S.th.msgs.filter(function(m){return m.r==='u';}).length;if(uCount>0&&uCount%5===0){extractTherapistInsights();}}};
+  var thVP=mkVoicePair(inp,thVCfg);
+  ft.appendChild(inp);ft.appendChild(thVP);ft.appendChild(sb);w.appendChild(ft);
   async function send(){
     const t=inp.value.trim();if(!t||busy)return;
     inp.value='';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',t);
@@ -2964,11 +3293,11 @@ function mkCollapsible(labelText, labelColor, content, defaultOpen){
 
 
 // ── LISTEN BUTTON — global, robust TTS
-function mkListenBtn(getText){
+function mkInlineListenBtn(getText){
   var active=false;
-  var btn=h('button',{cls:'av-btn',css:{display:'flex',alignItems:'center',gap:'6px',padding:'7px 14px',fontSize:'13px',borderColor:C.tb,color:C.tl,flexShrink:'0'}});
-  function setIdle(){active=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="'+TEAL+'" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Listen</span>';btn.style.color=C.tl;}
-  function setPlaying(){active=true;btn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="'+GOLD+'" stroke="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>Stop</span>';btn.style.color=GOLD;}
+  var btn=h('button',{css:{display:'inline-flex',alignItems:'center',justifyContent:'center',background:'transparent',border:'none',color:TEAL,cursor:'pointer',padding:'4px',borderRadius:'6px',transition:'all .2s',opacity:'.45',flexShrink:'0',lineHeight:'1'}});
+  function setIdle(){active=false;btn.innerHTML='<svg width=\"19\" height=\"15\" viewBox=\"0 0 52 40\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 14 L11 14 L21 5 L21 35 L11 26 L3 26 Z\"/><path d=\"M25 17 a5,5 0 0 1 0,6\"/><path d=\"M29 12 a11,11 0 0 1 0,16\"/><path d=\"M33 7 a16,16 0 0 1 0,26\"/></svg>';btn.style.color=TEAL;btn.style.opacity='.82';}
+  function setPlaying(){active=true;btn.innerHTML='<svg width=\"13\" height=\"13\" viewBox=\"0 0 40 40\" fill=\"currentColor\"><rect x=\"8\" y=\"8\" width=\"24\" height=\"24\" rx=\"5\"/></svg>';btn.style.color=GOLD;btn.style.opacity='1';}
   setIdle();
   btn.addEventListener('click',function(){
     if(!window.speechSynthesis){btn.textContent='Not supported';return;}
@@ -2978,22 +3307,11 @@ function mkListenBtn(getText){
     // Small delay so cancel clears properly
     setTimeout(function(){
       var utt=new SpeechSynthesisUtterance(text);
-      utt.rate=0.8;utt.pitch=0.65;utt.volume=1;utt.lang='en-US';
-      // Try to pick a good voice if available
-      var voices=window.speechSynthesis.getVoices();
-      if(voices.length>0){
-        var pref=voices.find(function(v){return v.lang==='en-US'&&v.name.toLowerCase().includes('female');})
-          ||voices.find(function(v){return v.lang==='en-US';})
-          ||voices.find(function(v){return v.lang&&v.lang.startsWith('en');});
-        if(pref)utt.voice=pref;
-      }
       utt.onstart=setPlaying;
       utt.onend=setIdle;
       utt.onerror=setIdle;
-      // Chrome mobile fix: resume first
-      window.speechSynthesis.resume();
-      window.speechSynthesis.speak(utt);
-      setPlaying();
+      applyTherapeuticVoice(utt);
+      if(utt.voice||window.speechSynthesis.getVoices().length)window.speechSynthesis.speak(utt);
     },80);
   });
   return btn;
@@ -3075,7 +3393,7 @@ function renderSimResult(r, onBack, onNew){
     storyLabel.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.18em',textTransform:'uppercase',color:GOLD}},'Your Alternate Story'));
     // Global listen: reads all chapters
     const allChaptersText=(e.chapters||[]).map(function(c){return c.title+'. '+c.story;}).join(' ');
-    if(allChaptersText)storyLabel.appendChild(mkListenBtn(function(){return allChaptersText;}));
+    if(allChaptersText)storyLabel.appendChild(mkInlineListenBtn(function(){return allChaptersText;}));
     inn.appendChild(storyLabel);
 
     if(e.chapters&&e.chapters.length>0){
@@ -3091,7 +3409,7 @@ function renderSimResult(r, onBack, onNew){
         chMeta.appendChild(h('p',{css:{fontFamily:PF,fontSize:'15px',fontWeight:'600',color:'#F0EEF8'}},ch.title||''));
         const chEmoRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
         if(ch.emotion){const chEmo=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.4)',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'10px',padding:'2px 8px'}});chEmo.textContent=ch.emotion;chEmoRow.appendChild(chEmo);}
-        chEmoRow.appendChild(mkListenBtn(function(s){return function(){return s;};}(ch.story||'')));
+        chEmoRow.appendChild(mkInlineListenBtn(function(s){return function(){return s;};}(ch.story||'')));
         chHdr.appendChild(chNum);chHdr.appendChild(chMeta);chHdr.appendChild(chEmoRow);
         card.appendChild(chHdr);
         // Story text — larger, more readable
@@ -3450,8 +3768,8 @@ function PL(){
     ta.value=S.pl[key]||'';
     ta.addEventListener('input',function(e){S.pl[key]=e.target.value;sb.disabled=!S.pl.d.trim()||!S.pl.a.trim();});
     wrap.appendChild(ta);
-    const mic=mkMic(ta);
-    if(mic){mic.style.position='absolute';mic.style.right='6px';mic.style.top='6px';mic.style.padding='6px 8px';wrap.appendChild(mic);}
+    var plBpMic=mkMicBtn(ta,GOLD);
+    if(plBpMic){plBpMic.style.position='absolute';plBpMic.style.right='6px';plBpMic.style.top='6px';plBpMic.style.padding='6px 8px';wrap.appendChild(plBpMic);}
     d.appendChild(wrap);
     // Example chips row
     const exRow=h('div',{css:{marginTop:'8px'}});
@@ -3589,7 +3907,7 @@ function PL(){
     q1.value=S.pl.ctx.who||'';
     q1.addEventListener('input',function(){S.pl.ctx.who=q1.value;});
     q1Wrap.appendChild(q1);
-    var q1mic=mkMic(q1);if(q1mic){q1mic.style.position='absolute';q1mic.style.right='6px';q1mic.style.top='6px';q1mic.style.padding='6px 8px';q1Wrap.appendChild(q1mic);}
+    var q1mic=mkMicBtn(q1,GOLD);if(q1mic){q1mic.style.position='absolute';q1mic.style.right='6px';q1mic.style.top='6px';q1mic.style.padding='6px 8px';q1Wrap.appendChild(q1mic);}
     qcSection.appendChild(q1Label);qcSection.appendChild(q1Wrap);
 
     // ── Open question 2: What is really at stake?
@@ -3602,7 +3920,7 @@ function PL(){
     q2.value=S.pl.ctx.stake||'';
     q2.addEventListener('input',function(){S.pl.ctx.stake=q2.value;});
     q2Wrap.appendChild(q2);
-    var q2mic=mkMic(q2);if(q2mic){q2mic.style.position='absolute';q2mic.style.right='6px';q2mic.style.top='6px';q2mic.style.padding='6px 8px';q2Wrap.appendChild(q2mic);}
+    var q2mic=mkMicBtn(q2,GOLD);if(q2mic){q2mic.style.position='absolute';q2mic.style.right='6px';q2mic.style.top='6px';q2mic.style.padding='6px 8px';q2Wrap.appendChild(q2mic);}
     qcSection.appendChild(q2Label);qcSection.appendChild(q2Wrap);
 
     simulateInn.appendChild(qcSection);
@@ -4125,8 +4443,8 @@ function NewEntryPage(onBack){
 
   // Voice input
   const voiceRow=h('div',{css:{display:'flex',gap:'8px',alignItems:'center',marginBottom:'20px'}});
-  const mic=mkMic(ta);
-  if(mic){
+  const jrnMic=mkMicBtn(ta,TEAL);
+  if(jrnMic){
     mic.style.width='100%';mic.style.padding='11px';mic.style.display='flex';mic.style.alignItems='center';mic.style.justifyContent='center';mic.style.gap='8px';
     voiceRow.appendChild(mic);
   }
@@ -5568,7 +5886,7 @@ function buildPLAnalyseTab(analyseInn){
   if(S.pl&&S.pl._aIn)pathATa.value=S.pl._aIn.pathA||'';
   pathATa.addEventListener('input',function(){if(!S.pl._aIn)S.pl._aIn={};S.pl._aIn.pathA=pathATa.value;});
   pathAWrap.appendChild(pathATa);
-  var pathAMic=mkMic(pathATa);if(pathAMic){pathAMic.style.position='absolute';pathAMic.style.right='6px';pathAMic.style.top='6px';pathAMic.style.padding='6px 8px';pathAWrap.appendChild(pathAMic);}
+  var pathAMic=mkMicBtn(pathATa,GOLD);if(pathAMic){pathAMic.style.position='absolute';pathAMic.style.right='6px';pathAMic.style.top='6px';pathAMic.style.padding='6px 8px';pathAWrap.appendChild(pathAMic);}
   analyseInn.appendChild(pathAWrap);
 
   // ── Path B
@@ -5582,7 +5900,7 @@ function buildPLAnalyseTab(analyseInn){
   if(S.pl&&S.pl._aIn)pathBTa.value=S.pl._aIn.pathB||'';
   pathBTa.addEventListener('input',function(){if(!S.pl._aIn)S.pl._aIn={};S.pl._aIn.pathB=pathBTa.value;});
   pathBWrap.appendChild(pathBTa);
-  var pathBMic=mkMic(pathBTa);if(pathBMic){pathBMic.style.position='absolute';pathBMic.style.right='6px';pathBMic.style.top='6px';pathBMic.style.padding='6px 8px';pathBWrap.appendChild(pathBMic);}
+  var pathBMic=mkMicBtn(pathBTa,GOLD);if(pathBMic){pathBMic.style.position='absolute';pathBMic.style.right='6px';pathBMic.style.top='6px';pathBMic.style.padding='6px 8px';pathBWrap.appendChild(pathBMic);}
   analyseInn.appendChild(pathBWrap);
 
   // ── What makes it difficult
@@ -5596,7 +5914,7 @@ function buildPLAnalyseTab(analyseInn){
   if(S.pl&&S.pl._aIn)diffTa.value=S.pl._aIn.diff||'';
   diffTa.addEventListener('input',function(){if(!S.pl._aIn)S.pl._aIn={};S.pl._aIn.diff=diffTa.value;});
   diffWrap.appendChild(diffTa);
-  var diffMic=mkMic(diffTa);if(diffMic){diffMic.style.position='absolute';diffMic.style.right='6px';diffMic.style.top='6px';diffMic.style.padding='6px 8px';diffWrap.appendChild(diffMic);}
+  var diffMic=mkMicBtn(diffTa,GOLD);if(diffMic){diffMic.style.position='absolute';diffMic.style.right='6px';diffMic.style.top='6px';diffMic.style.padding='6px 8px';diffWrap.appendChild(diffMic);}
   analyseInn.appendChild(diffWrap);
 
   analyseInn.appendChild((function(){var wrap=h('div',{css:{marginBottom:'16px',marginTop:'8px'}});var numRow=h('div',{css:{display:'flex',alignItems:'baseline',gap:'10px',marginBottom:'4px'}});numRow.appendChild(h('span',{css:{fontFamily:PF,fontSize:'28px',fontWeight:'700',color:GOLD,lineHeight:'1',opacity:'.9'}},'03'));numRow.appendChild(h('div',{css:{flex:'1',height:'1px',background:'linear-gradient(to right,rgba(242,201,76,.4),transparent)',marginBottom:'4px'}}));wrap.appendChild(numRow);wrap.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8',marginBottom:'3px'}},'Time Horizon'));wrap.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)'}},'How far ahead should the analysis look?'));return wrap;}()));
@@ -6334,7 +6652,7 @@ function BlueprintPage(){
     ta.value=store[key]||'';
     ta.addEventListener('input',function(){store[key]=ta.value;S.blueprint[store===S.blueprint.purposeAnswers?'purposeAnswers':'careerAnswers'][key]=ta.value;});
     wrap.appendChild(ta);
-    var mic=mkMic(ta);if(mic){mic.style.position='absolute';mic.style.right='6px';mic.style.top='6px';mic.style.padding='6px 8px';wrap.appendChild(mic);}
+    var bpQMic=mkMicBtn(ta,GOLD);if(bpQMic){bpQMic.style.position='absolute';bpQMic.style.right='6px';bpQMic.style.top='6px';bpQMic.style.padding='6px 8px';wrap.appendChild(bpQMic);}
     return {wrap,ta};
   }
 
@@ -6994,7 +7312,7 @@ function FuturePage(){
     var vcWrap=h('div',{css:{position:'relative',flex:'1'}});
     var vcInput=h('input',{cls:'av-in',css:{width:'100%',height:'46px',borderColor:'rgba(52,211,153,.3)',fontSize:'14px',paddingRight:'42px',background:'rgba(255,255,255,.06)'}});
     vcInput.placeholder='Say something to your future self\u2026';
-    var vcMic=mkMic(vcInput);
+    var vcMic=mkMicBtn(vcInput,FS_COL);
     if(vcMic){vcMic.style.position='absolute';vcMic.style.right='6px';vcMic.style.top='50%';vcMic.style.transform='translateY(-50%)';vcMic.style.padding='6px 8px';vcWrap.appendChild(vcMic);}
     vcWrap.insertBefore(vcInput,vcWrap.firstChild);
     var vcSendBtn=h('button',{css:{width:'46px',height:'46px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+FS_COL+',#059669)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:'0',boxShadow:'0 2px 12px rgba(52,211,153,.4)'}});
@@ -7049,9 +7367,10 @@ function FuturePage(){
   var inpWrap=h('div',{css:{position:'relative',flex:'1'}});
   var fsInput=h('input',{cls:'av-in',css:{width:'100%',height:'44px',borderColor:FS_BORDER,fontSize:'15px',paddingRight:'42px'}});
   fsInput.placeholder='Ask your future self anything\u2026';fsInput.disabled=true;
-  var fsMicEl=mkMic(fsInput);
-  if(fsMicEl){fsMicEl.style.position='absolute';fsMicEl.style.right='6px';fsMicEl.style.top='50%';fsMicEl.style.transform='translateY(-50%)';fsMicEl.style.padding='6px 8px';inpWrap.appendChild(fsMicEl);}
   inpWrap.insertBefore(fsInput,inpWrap.firstChild);
+  var fsVCfg={color:FS_COL,title:'Voice — Future Self',buildSysPrompt:function(){return getFutureSys();},getHistory:function(){return S.future.msgs.slice();},onExchange:function(uTxt,aTxt){if(uTxt)S.future.msgs.push({role:'user',content:uTxt});if(aTxt)S.future.msgs.push({role:'assistant',content:aTxt});if(S.user){S.user.future=S.future;saveUser(S.user);}try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(e){}var fsAiCount=S.future.msgs.filter(function(m){return m.role==='assistant';}).length;if(fsAiCount>0&&fsAiCount%4===0){autoEnrichFromChat(S.future.msgs,'future-self');}}};
+  var fsVP=mkVoicePair(fsInput,fsVCfg);
+  fsInput.style.paddingRight='';
   var fsSendBtn=h('button',{css:{flexShrink:'0',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+FS_COL+',#059669)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 12px rgba(52,211,153,.3)',opacity:'.4'}});
   fsSendBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0B1A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
   fsSendBtn.disabled=true;
@@ -7059,7 +7378,7 @@ function FuturePage(){
   fsSendBtn.addEventListener('mouseleave',function(){fsSendBtn.style.transform='scale(1)';fsSendBtn.style.boxShadow='0 2px 12px rgba(52,211,153,.3)';});
   fsSendBtn.addEventListener('mousedown',function(){fsSendBtn.style.transform='scale(0.95)';});
   fsSendBtn.addEventListener('mouseup',function(){fsSendBtn.style.transform='scale(1.08)';});
-  inpRow.appendChild(inpWrap);inpRow.appendChild(fsSendBtn);
+  inpRow.appendChild(inpWrap);inpRow.appendChild(fsVP);inpRow.appendChild(fsSendBtn);
   sec02Inner.appendChild(inpRow);
 
   sec02Wrap.appendChild(sec02Inner);
@@ -7104,7 +7423,9 @@ function FuturePage(){
       var av=h('div',{css:{width:'30px',height:'30px',borderRadius:'50%',background:FS_BG,border:'1px solid '+FS_BORDER,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'14px',color:FS_COL}});av.textContent='\u25C8';row.appendChild(av);
     }
     var bub=h('div',{css:{maxWidth:'82%',padding:'11px 14px',borderRadius:isUser?'12px 12px 2px 12px':'12px 12px 12px 2px',background:isUser?FS_BG:'rgba(20,13,38,.95)',border:'1px solid '+(isUser?'rgba(52,211,153,.2)':FS_BORDER),fontFamily:CR,fontSize:'15px',lineHeight:'1.75',color:'rgba(255,255,255,.88)'}});
-    bub.textContent=text;row.appendChild(bub);msgWrap.appendChild(row);msgWrap.scrollTop=msgWrap.scrollHeight;
+    bub.textContent=text;
+    if(!isUser){var fsLW=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});fsLW.appendChild(mkListenBtn(text,FS_COL));bub.appendChild(fsLW);}
+    row.appendChild(bub);msgWrap.appendChild(row);msgWrap.scrollTop=msgWrap.scrollHeight;
   }
 
   function getFutureSys(){
@@ -7382,7 +7703,7 @@ function DreamPage(){
   dreamTa.rows=4;dreamTa.style.resize='none';dreamTa.style.lineHeight='1.75';
   dreamTa.style.display='block';dreamTa.style.paddingRight='40px';
   taWrap.appendChild(dreamTa);
-  var dMic=mkMic(dreamTa);if(dMic){dMic.style.position='absolute';dMic.style.right='6px';dMic.style.top='6px';dMic.style.padding='6px 8px';taWrap.appendChild(dMic);}
+  var dMic=mkMicBtn(dreamTa,'#818CF8');if(dMic){dMic.style.position='absolute';dMic.style.right='6px';dMic.style.top='6px';dMic.style.padding='6px 8px';taWrap.appendChild(dMic);}
   logCard.appendChild(taWrap);
 
   // Mood row
@@ -7805,7 +8126,7 @@ function TimeCapsulePage(){
   msgTa.className='av-in';msgTa.placeholder='Write freely. What do you want your future self to remember? What are you feeling right now? What are you hoping for?';
   msgTa.rows=6;msgTa.style.resize='none';msgTa.style.lineHeight='1.75';msgTa.style.display='block';msgTa.style.paddingRight='40px';
   msgWrap.appendChild(msgTa);
-  var tcMic=mkMic(msgTa);if(tcMic){tcMic.style.position='absolute';tcMic.style.right='6px';tcMic.style.top='6px';tcMic.style.padding='6px 8px';msgWrap.appendChild(tcMic);}
+  var tcMic=mkMicBtn(msgTa,GOLD);if(tcMic){tcMic.style.position='absolute';tcMic.style.right='6px';tcMic.style.top='6px';tcMic.style.padding='6px 8px';msgWrap.appendChild(tcMic);}
   sealCard.appendChild(msgWrap);
 
   // Mood
@@ -8316,7 +8637,7 @@ function WisdomPage(){
   askTa.className='av-in';askTa.placeholder='What is on your mind? Ask about a decision, a relationship, your purpose, a fear\u2026';
   askTa.rows=3;askTa.style.resize='none';askTa.style.lineHeight='1.7';askTa.style.display='block';askTa.style.paddingRight='44px';
   askWrap.appendChild(askTa);
-  var askMic=mkMic(askTa);
+  var askMic=mkMicBtn(askTa,TEAL);
   if(askMic){askMic.style.position='absolute';askMic.style.right='6px';askMic.style.top='6px';askMic.style.padding='6px 8px';askWrap.appendChild(askMic);}
   askCard.appendChild(askWrap);
   var askBtn=h('button',{css:{width:'100%',padding:'13px',background:'linear-gradient(135deg,'+WO_COL+',#06b6d4)',border:'none',borderRadius:'12px',color:'#0D0B1A',fontFamily:PF,fontSize:'15px',fontWeight:'700',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 14px rgba(34,211,238,.2)'}});
@@ -8573,9 +8894,10 @@ function InnerChildPage(){
   var icInput=h('input',{cls:'av-in',css:{width:'100%',height:'44px',borderColor:IC_BORDER,fontSize:'15px',paddingRight:'42px'}});
   icInput.placeholder='Speak to your younger self\u2026';
   icInput.disabled=true;
-  var icMicEl=mkMic(icInput);
-  if(icMicEl){icMicEl.style.position='absolute';icMicEl.style.right='6px';icMicEl.style.top='50%';icMicEl.style.transform='translateY(-50%)';icMicEl.style.padding='6px 8px';icWrap.appendChild(icMicEl);}
   icWrap.insertBefore(icInput,icWrap.firstChild);
+  var icVCfg={color:IC_COL,title:'Voice — Inner Child',buildSysPrompt:function(){var ageData=AGES.find(function(a){return a.age===S.ic.age;})||{age:S.ic.age,era:'',desc:''};var ctx=buildUserContext('innerchild');return 'You are this person\'s inner child at age '+S.ic.age+(ageData.era?' ('+ageData.era+')':'')+'. Speak from that age\'s perspective — curious, innocent, sometimes confused or hurt. Keep responses brief, childlike, emotionally authentic.\n\n'+ctx;},getHistory:function(){return S.ic.msgs.slice();},onExchange:function(uTxt,aTxt){if(uTxt)S.ic.msgs.push({role:'user',content:uTxt});if(aTxt)S.ic.msgs.push({role:'assistant',content:aTxt});if(S.user){S.user.ic=S.ic;saveUser(S.user);}try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(e){}var icAiCount=S.ic.msgs.filter(function(m){return m.role==='assistant';}).length;if(icAiCount>0&&icAiCount%4===0){autoEnrichFromChat(S.ic.msgs,'inner-child');}}};
+  var icVP=mkVoicePair(icInput,icVCfg);
+  icInput.style.paddingRight='';
   var icSendBtn=h('button',{css:{flexShrink:'0',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+IC_COL+',#f97316)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 12px rgba(251,146,60,.3)',opacity:'.4'}});
   icSendBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
   icSendBtn.disabled=true;
@@ -8583,7 +8905,7 @@ function InnerChildPage(){
   icSendBtn.addEventListener('mouseleave',function(){icSendBtn.style.transform='scale(1)';icSendBtn.style.boxShadow='0 2px 12px rgba(251,146,60,.3)';});
   icSendBtn.addEventListener('mousedown',function(){icSendBtn.style.transform='scale(0.95)';});
   icSendBtn.addEventListener('mouseup',function(){icSendBtn.style.transform='scale(1.08)';});
-  inputRow.appendChild(icWrap);inputRow.appendChild(icSendBtn);
+  inputRow.appendChild(icWrap);inputRow.appendChild(icVP);inputRow.appendChild(icSendBtn);
   sec02Inner.appendChild(inputRow);
 
   sec02Wrap.appendChild(sec02Inner);
@@ -8633,7 +8955,9 @@ function InnerChildPage(){
       av.textContent='\uD83D\uDC76';row.appendChild(av);
     }
     var bub=h('div',{css:{maxWidth:'82%',padding:'11px 14px',borderRadius:isUser?'12px 12px 2px 12px':'12px 12px 12px 2px',background:isUser?'rgba(251,146,60,.09)':'rgba(20,13,38,.95)',border:'1px solid '+(isUser?'rgba(251,146,60,.2)':IC_BORDER),fontFamily:CR,fontSize:'15px',lineHeight:'1.75',color:'rgba(255,255,255,.88)'}});
-    bub.textContent=text;row.appendChild(bub);msgWrap.appendChild(row);msgWrap.scrollTop=msgWrap.scrollHeight;
+    bub.textContent=text;
+    if(!isUser){var icLW=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});icLW.appendChild(mkListenBtn(text,IC_COL));bub.appendChild(icLW);}
+    row.appendChild(bub);msgWrap.appendChild(row);msgWrap.scrollTop=msgWrap.scrollHeight;
   }
 
   function checkUnlockIntegration(){
@@ -8948,7 +9272,7 @@ function RelationshipPage(){
   sitTa.className='av-in';sitTa.placeholder='What\u2019s going on in this relationship right now? What do you want to change, understand, or practice?';
   sitTa.rows=4;sitTa.style.resize='none';sitTa.style.lineHeight='1.7';sitTa.style.paddingRight='44px';sitTa.style.display='block';sitTa.style.borderColor=RA_BORDER;
   taWrap.appendChild(sitTa);
-  var taMic=mkMic(sitTa);if(taMic){taMic.style.position='absolute';taMic.style.right='6px';taMic.style.top='6px';taMic.style.padding='6px 8px';taWrap.appendChild(taMic);}
+  var taMic=mkMicBtn(sitTa,RA_COL);if(taMic){taMic.style.position='absolute';taMic.style.right='6px';taMic.style.top='6px';taMic.style.padding='6px 8px';taWrap.appendChild(taMic);}
   sec02Inner.appendChild(taWrap);
 
   var beginBtn=h('button',{css:{width:'100%',padding:'13px',background:'linear-gradient(135deg,'+RA_COL+',#f472b6)',border:'none',borderRadius:'12px',color:'#1a0020',fontFamily:PF,fontSize:'15px',fontWeight:'700',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 14px rgba(249,168,212,.25)'}});
@@ -9023,9 +9347,10 @@ function RelationshipPage(){
   var inpWrap=h('div',{css:{position:'relative',flex:'1'}});
   var raInput=h('input',{cls:'av-in',css:{width:'100%',height:'44px',borderColor:RA_BORDER,fontSize:'15px',paddingRight:'42px'}});
   raInput.placeholder='Type your message\u2026';raInput.disabled=true;
-  var raMicEl=mkMic(raInput);
-  if(raMicEl){raMicEl.style.position='absolute';raMicEl.style.right='6px';raMicEl.style.top='50%';raMicEl.style.transform='translateY(-50%)';raMicEl.style.padding='6px 8px';inpWrap.appendChild(raMicEl);}
   inpWrap.insertBefore(raInput,inpWrap.firstChild);
+  var raVCfg={color:RA_COL,title:'Voice — Relationship Coach',buildSysPrompt:function(){var ctx=buildUserContext('relationship');var domObj=DOMAINS.find(function(d){return d.id===S.ra.domain;})||{label:S.ra.domain||'relationships'};return 'You are a warm, direct relationship coach using Attachment Theory and Non-Violent Communication (NVC). Domain: '+domObj.label+(S.ra.challenge?'. Context: '+S.ra.challenge:'')+'. Keep responses focused and practical (2-4 sentences).\n\n'+ctx;},getHistory:function(){return S.ra.msgs.filter(function(m){return !m.rp;}).map(function(m){return{role:m.role,content:m.content};});},onExchange:function(uTxt,aTxt){if(uTxt)S.ra.msgs.push({role:'user',content:uTxt,rp:false});if(aTxt)S.ra.msgs.push({role:'assistant',content:aTxt,rp:false});if(S.user){S.user.ra=S.ra;saveUser(S.user);}try{localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(e){}var raAi=S.ra.msgs.filter(function(m){return m.role==='assistant'&&!m.rp;}).length;if(raAi>0&&raAi%4===0){autoEnrichFromChat(S.ra.msgs.filter(function(m){return!m.rp;}),'relationship');}}};
+  var raVP=mkVoicePair(raInput,raVCfg);
+  raInput.style.paddingRight='';
   var raSendBtn=h('button',{css:{flexShrink:'0',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+RA_COL+',#f472b6)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 12px rgba(249,168,212,.3)',opacity:'.4'}});
   raSendBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a0020" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
   raSendBtn.disabled=true;
@@ -9033,7 +9358,7 @@ function RelationshipPage(){
   raSendBtn.addEventListener('mouseleave',function(){raSendBtn.style.transform='scale(1)';raSendBtn.style.boxShadow='0 2px 12px rgba(249,168,212,.3)';});
   raSendBtn.addEventListener('mousedown',function(){raSendBtn.style.transform='scale(0.95)';});
   raSendBtn.addEventListener('mouseup',function(){raSendBtn.style.transform='scale(1.08)';});
-  inputRow.appendChild(inpWrap);inputRow.appendChild(raSendBtn);
+  inputRow.appendChild(inpWrap);inputRow.appendChild(raVP);inputRow.appendChild(raSendBtn);
   sec03Inner.appendChild(inputRow);
 
   // Deeplinks post-session
@@ -9089,7 +9414,9 @@ function RelationshipPage(){
       var rpLbl=h('p',{css:{fontFamily:CR,fontSize:'9px',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(244,114,182,.6)',marginBottom:'5px'}});
       rpLbl.textContent=S.ra.roleplay.archetype||'Role-play';bub.appendChild(rpLbl);
     }
-    bub.appendChild(document.createTextNode(text));row.appendChild(bub);msgWrap.appendChild(row);msgWrap.scrollTop=msgWrap.scrollHeight;
+    bub.appendChild(document.createTextNode(text));
+    if(!isUser){var raLW=h('div',{css:{display:'flex',justifyContent:'flex-end',marginTop:'5px'}});raLW.appendChild(mkListenBtn(text,RA_COL));bub.appendChild(raLW);}
+    row.appendChild(bub);msgWrap.appendChild(row);msgWrap.scrollTop=msgWrap.scrollHeight;
   }
 
   async function raSend(){
@@ -9271,7 +9598,7 @@ window.addEventListener('popstate',function(e){
   S._returnTo=null;S.scr=prev;
   var av=document.getElementById('av');if(!av)return;av.innerHTML='';
   var mainScreens=['home','modules','journal','self','settings'];
-  var fns={login:LoginPage,signup:SignupPage,onboarding:OnboardingPage,welcome:Welcome,esp1:ESP1,esp2:ESP2,home:Home,therapist:Therapist,parallellives:PL,modules:ModulesPage,journal:JournalPage,self:SelfPage,settings:SettingsPage,future:FuturePage,wisdom:WisdomPage,blueprint:BlueprintPage,dreams:DreamPage,timecapsule:TimeCapsulePage,innerchild:InnerChildPage,relationship:RelationshipPage};
+  var fns={login:LoginPage,signup:SignupPage,onboarding:OnboardingPage,welcome:Welcome,esp1:ESP1,esp2:ESP2,home:Home,therapist:Therapist,parallellives:PL,modules:ModulesPage,journal:JournalPage,self:SelfPage,settings:SettingsPage,future:FuturePage,voicechat:VoiceChatPage,wisdom:WisdomPage,blueprint:BlueprintPage,dreams:DreamPage,timecapsule:TimeCapsulePage,innerchild:InnerChildPage,relationship:RelationshipPage};
   if(!fns[prev])return;
   var screen=fns[prev]();
   if(mainScreens.includes(prev)){screen.style.paddingBottom='72px';av.appendChild(screen);av.appendChild(BottomNav(prev));}
