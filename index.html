@@ -2024,8 +2024,8 @@ function mkModCard4(m, onClick){
   var _colMap={purple:'167,139,250',green:'52,211,153',orange:'251,146,60',pink:'249,168,212',gold:'242,201,76',cyan:'34,211,238',teal:'0,229,192'};
   var _rgb=_colMap[_gc]||'0,229,192';
   var _orbDelay=(Math.random()*4).toFixed(1);
-  card.appendChild(h('div',{css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.30),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite, av-orb-breathe '+(parseInt(_dur)+2)+'s ease-in-out '+_orbDelay+'s infinite'}}));
-  card.appendChild(h('div',{css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.19),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite, av-orb-breathe2 '+(parseInt(_dur)+3)+'s ease-in-out '+_orbDelay+'s infinite'}}));
+  card.appendChild(h('div',{css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.30),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite, av-orb-breathe '+(parseInt(_dur)+6)+'s ease-in-out '+_orbDelay+'s infinite'}}));
+  card.appendChild(h('div',{css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.19),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite, av-orb-breathe2 '+(parseInt(_dur)+7)+'s ease-in-out '+_orbDelay+'s infinite'}}));
   // i-button — identity color
   const info=h('div',{css:{position:'absolute',top:'7px',right:'7px',width:'18px',height:'18px',borderRadius:'50%',border:'1px solid '+col+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:col,cursor:'pointer',zIndex:'2',background:col+'10'}});
   info.textContent='i';
@@ -2690,9 +2690,9 @@ function Home(){
   (function(){
     var streak=getWritingStreak();
     var writtenToday=hasWrittenToday();
-    var djCard=h('div',{css:{background:'rgba(167,139,250,.06)',border:'1px solid rgba(167,139,250,.2)',borderRadius:'16px',padding:'16px',marginBottom:'12px',cursor:'pointer',transition:'all .2s',animation:'av-card-glow-purple 6.0s ease-in-out infinite, av-stagger .6s ease .18s both',position:'relative',overflow:'hidden'}});
-    djCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(167,139,250,.28),transparent 70%)',top:'-40px',right:'-40px',pointerEvents:'none',animation:'av-drift 9s ease-in-out infinite, av-orb-breathe 6s ease-in-out 0.3s infinite'}}));
-    djCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(167,139,250,.18),transparent 70%)',bottom:'-20px',left:'10px',pointerEvents:'none',animation:'av-drift2 12s ease-in-out infinite, av-orb-breathe2 6s ease-in-out 0.3s infinite'}}));
+    var djCard=h('div',{css:{background:'rgba(167,139,250,.06)',border:'1px solid rgba(167,139,250,.2)',borderRadius:'16px',padding:'16px',marginBottom:'12px',cursor:'pointer',transition:'all .2s',animation:'av-card-glow-purple 9.6s ease-in-out infinite, av-stagger .6s ease .18s both',position:'relative',overflow:'hidden'}});
+    djCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(167,139,250,.28),transparent 70%)',top:'-40px',right:'-40px',pointerEvents:'none',animation:'av-drift 9s ease-in-out infinite, av-orb-breathe 9s ease-in-out 0.3s infinite'}}));
+    djCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(167,139,250,.18),transparent 70%)',bottom:'-20px',left:'10px',pointerEvents:'none',animation:'av-drift2 12s ease-in-out infinite, av-orb-breathe2 9s ease-in-out 0.3s infinite'}}));
     djCard.addEventListener('mouseenter',function(){djCard.style.background='rgba(167,139,250,.12)';djCard.style.borderColor='rgba(167,139,250,.4)';djCard.style.boxShadow='0 0 32px rgba(167,139,250,.28)';});
     djCard.addEventListener('mouseleave',function(){djCard.style.background='rgba(167,139,250,.06)';djCard.style.borderColor='rgba(167,139,250,.2)';djCard.style.boxShadow='';});
     djCard.addEventListener('click',function(){go('journal');});
@@ -2760,8 +2760,8 @@ function Home(){
     S.th.msgs=[{r:'a',t:"I'm here with you. Let's sit with today's question together: \n\n\""+dp.q+"\"\n\nTake your time. There's no right answer — only your honest one."}];
     go('therapist');
   }}});
-  tjCard.appendChild(h('div',{css:{position:'absolute',width:'200px',height:'200px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.26),transparent 70%)',top:'-50px',right:'-30px',pointerEvents:'none',animation:'av-drift 11s ease-in-out infinite, av-orb-breathe 6.5s ease-in-out 3.2s infinite'}}));
-  tjCard.appendChild(h('div',{css:{position:'absolute',width:'90px',height:'90px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.16),transparent 70%)',bottom:'-10px',left:'20px',pointerEvents:'none',animation:'av-drift3 8s ease-in-out infinite, av-orb-breathe2 6.5s ease-in-out 3.2s infinite'}}));
+  tjCard.appendChild(h('div',{css:{position:'absolute',width:'200px',height:'200px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.26),transparent 70%)',top:'-50px',right:'-30px',pointerEvents:'none',animation:'av-drift 11s ease-in-out infinite, av-orb-breathe 10s ease-in-out 3.2s infinite'}}));
+  tjCard.appendChild(h('div',{css:{position:'absolute',width:'90px',height:'90px',borderRadius:'50%',background:'radial-gradient(circle,rgba(242,201,76,.16),transparent 70%)',bottom:'-10px',left:'20px',pointerEvents:'none',animation:'av-drift3 8s ease-in-out infinite, av-orb-breathe2 10s ease-in-out 3.2s infinite'}}));
   tjCard.addEventListener('mouseenter',function(){tjCard.style.borderColor='rgba(242,201,76,.35)';tjCard.style.background='linear-gradient(135deg,rgba(242,201,76,.1),rgba(24,14,46,0.98))';tjCard.style.boxShadow='0 0 32px rgba(242,201,76,.2)';});
   tjCard.addEventListener('mouseleave',function(){tjCard.style.borderColor='rgba(242,201,76,.2)';tjCard.style.background='linear-gradient(135deg,rgba(242,201,76,.06),rgba(20,12,40,0.95))';tjCard.style.boxShadow='';});
   var tjTopRow=h('div',{css:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}});
@@ -2814,8 +2814,8 @@ function Home(){
     function renderWisdomInPlaceholder(data){
       wisdomPlaceholder.innerHTML='';
       var wCard=h('div',{css:{background:'rgba(34,211,238,.06)',border:'1px solid rgba(34,211,238,.2)',borderRadius:'16px',padding:'16px',marginBottom:'16px',cursor:'pointer',transition:'all .2s',position:'relative',overflow:'hidden',animation:'av-card-glow-cyan 5s ease-in-out 1s infinite'}});
-      wCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.26),transparent 70%)',top:'-40px',right:'-20px',pointerEvents:'none',animation:'av-drift2 10s ease-in-out infinite, av-orb-breathe 7s ease-in-out 1.8s infinite'}}));
-      wCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.16),transparent 70%)',bottom:'-15px',left:'15px',pointerEvents:'none',animation:'av-drift 14s ease-in-out infinite, av-orb-breathe2 7s ease-in-out 1.8s infinite'}}));
+      wCard.appendChild(h('div',{css:{position:'absolute',width:'180px',height:'180px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.26),transparent 70%)',top:'-40px',right:'-20px',pointerEvents:'none',animation:'av-drift2 10s ease-in-out infinite, av-orb-breathe 11s ease-in-out 1.8s infinite'}}));
+      wCard.appendChild(h('div',{css:{position:'absolute',width:'100px',height:'100px',borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.16),transparent 70%)',bottom:'-15px',left:'15px',pointerEvents:'none',animation:'av-drift 14s ease-in-out infinite, av-orb-breathe2 11s ease-in-out 1.8s infinite'}}));
       wCard.addEventListener('mouseenter',function(){wCard.style.borderColor='rgba(34,211,238,.4)';wCard.style.background='rgba(34,211,238,.1)';wCard.style.boxShadow='0 0 32px rgba(34,211,238,.2)';});
       wCard.addEventListener('mouseleave',function(){wCard.style.borderColor='rgba(34,211,238,.2)';wCard.style.background='rgba(34,211,238,.06)';wCard.style.boxShadow='';});
       wCard.addEventListener('click',function(){go('wisdom');});
