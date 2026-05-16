@@ -3147,7 +3147,7 @@ function Therapist(){
 
   // ── Header ──────────────────────────────────────────────────────
   const hdr=h('div',{css:{padding:'16px 20px',borderBottom:`1px solid ${C.bo}`,display:'flex',alignItems:'center',gap:'12px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.6)',backdropFilter:'blur(10px)'}});
-  hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':S._returnTo==='modules'?'Modules':'Home',function(){saveCurrentToHistory();if(S._fromSim){S._fromSim=false;go('parallellives');}else{go(S._returnTo||'home');}}));
+  hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':S._returnTo==='modules'?'Modules':'Home',function(){saveCurrentToHistory();S.th.msgs=[];if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}if(S._fromSim){S._fromSim=false;go('parallellives');}else{go(S._returnTo||'home');}}));
   const hi=h('div',{css:{flex:'1',minWidth:'0'}});
   const thIcn=mkModIcon('therapist');thIcn.style.marginBottom='0';thIcn.style.width='36px';thIcn.style.height='36px';thIcn.style.borderRadius='10px';thIcn.style.flexShrink='0';
   const thRow=h('div',{css:{display:'flex',alignItems:'center',gap:'6px',minWidth:'0'}});thRow.appendChild(thIcn);
@@ -7753,7 +7753,7 @@ function FuturePage(){
   // ── Header
   var fsMod=ALL_MODS.find(function(m){return m.id==='future';})||{id:'future',name:'Future Self Mirror'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();S.future.msgs=[];if(S.user){S.user.future=S.future;saveUser(S.user);}try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(e){}go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1',minWidth:'0'}});
   var fIco=mkModIcon('future');fIco.style.marginBottom='0';fIco.style.width='36px';fIco.style.height='36px';fIco.style.borderRadius='10px';fIco.style.flexShrink='0';
   var fRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -9667,7 +9667,7 @@ function InnerChildPage(){
   // ── Header
   var icMod=ALL_MODS.find(function(m){return m.id==='innerchild';})||{id:'innerchild',name:'Inner Child Healer'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();S.ic.msgs=[];if(S.user){S.user.ic=S.ic;saveUser(S.user);}try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(e){}go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1',minWidth:'0'}});
   var icIco=mkModIcon('innerchild');icIco.style.marginBottom='0';icIco.style.width='36px';icIco.style.height='36px';icIco.style.borderRadius='10px';icIco.style.flexShrink='0';
   var nameRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -10227,7 +10227,7 @@ function RelationshipPage(){
   // ── Header
   var raMod=ALL_MODS.find(function(m){return m.id==='relationship';})||{id:'relationship',name:'Relationship Architect'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();S.ra.msgs=[];if(S.user){S.user.ra=S.ra;saveUser(S.user);}try{localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(e){}go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1',minWidth:'0'}});
   var raIco=mkModIcon('relationship');raIco.style.marginBottom='0';raIco.style.width='36px';raIco.style.height='36px';raIco.style.borderRadius='10px';raIco.style.flexShrink='0';
   var nameRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
