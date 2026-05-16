@@ -486,7 +486,7 @@ function openContinuousPage(cfg){
   // Header
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}});
   hdr.appendChild(mkBackBtn('Back',function(){
-    stopAll();
+    stopAll();window._avStopVoice=null;
     go(S._returnTo||'home');
   }));
   var htxt=h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.9)',flex:'1'}});
@@ -625,7 +625,9 @@ function openContinuousPage(cfg){
     window.speechSynthesis.cancel();
     try{if(rec)rec.stop();}catch(e){}rec=null;
   }
-  stopBtn.addEventListener('click',function(){stopAll();go(S._returnTo||'home');});
+  stopBtn.addEventListener('click',function(){stopAll();window._avStopVoice=null;go(S._returnTo||'home');});
+  // Register global cleanup so popstate can stop voice on phone back
+  window._avStopVoice=function(){try{stopAll();}catch(e){}};
   // Start listening after brief delay
   state='listening';
   setTimeout(startListening,600);
@@ -1173,7 +1175,7 @@ const MOD_ICONS={
     svg:'<path d="M2 3h20v18H2z" stroke-linejoin="round" opacity="0.3"/><path d="M6 7h12M6 11h12M6 15h8" stroke-linecap="round"/><path d="M16 13l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/>'},
   relationship:{col:'#F9A8D4',bg:'rgba(249,168,212,.12)',border:'rgba(249,168,212,.3)',
     svg:'<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/>'},
-
+  self:{col:'#00E5C0',bg:'rgba(0,229,192,.10)',border:'rgba(0,229,192,.28)',svg:'<circle cx="12" cy="12" r="3"/><path d="M2 12c2-4 5-7 10-7s8 3 10 7c-2 4-5 7-10 7s-8-3-10-7z"/>'},
 };
 
 // ── NAV ICONS (SVG line style)
@@ -1846,6 +1848,15 @@ function setLang(l){try{localStorage.setItem('aevora_lang',l);}catch{}S.lang=l;g
 
 // ── MODULE DETAILS (from Technical Specification)
 const MODULE_DETAILS={
+  self:{
+    id:'ESP', phase:'Foundation',
+    concept:'Your Eternal Self Profile is Aevora\'s memory of you. Built from every conversation, reflection, and insight across all modules, it grows more accurate and nuanced over time. It is the connective tissue that makes every AI interaction feel genuinely personal — not generic.',
+    actions:'Review your values, personality patterns, emotional tendencies, and growth areas. See what each module has contributed. Refresh individual sections as you evolve.',
+    inputs:'Conversations from Therapist, Future Self, Inner Child, Relationship, and Oracle. Journal reflections. Dream patterns. Blueprint syntheses.',
+    outputs:'Personalised AI context across all modules. Tailored wisdom, therapeutic responses, and career guidance that reflects who you actually are.',
+    links:'Receives insights from every module. Powers personalisation across all of Aevora.',
+    note:'Your profile is stored privately on your device and is never shared or sold.',
+  },
   parallellives:{
     id:'F01', phase:'Phase 1 — MVP',
     concept:'Two powerful perspectives on life decisions. Simulate: already made a decision and wonder what might have been? Explore an alternate past and see the full life that could have unfolded. Analyse: facing a decision and unsure which path to take? Describe your two options and get a clear, values-driven view of which path carries less long-term regret — before you choose.',
@@ -2072,7 +2083,7 @@ function mkModCard4(m, onClick){
   const card=h('div',{css:{
     background:m.on?cfg&&cfg.bg?cfg.bg.replace('.12)','.06)'):'rgba(255,255,255,.04)':'rgba(22,14,42,0.9)',
     border:'1px solid '+(m.on?col+'33':'rgba(255,255,255,.06)'),
-    borderTop:'2px solid '+(m.on?col+'70':'rgba(255,255,255,.08)'),
+    borderTop:'2px solid '+(m.on?col+'aa':'rgba(255,255,255,.10)'),
     borderRadius:'14px',padding:'16px 11px 14px',
     display:'flex',flexDirection:'column',alignItems:'center',
     textAlign:'center',
@@ -2084,14 +2095,14 @@ function mkModCard4(m, onClick){
   var _glowMap={therapist:'teal',future:'lime',innerchild:'orange',relationship:'pink',parallellives:'gold',dreams:'indigo',blueprint:'skyblue',wisdom:'cyan',timecapsule:'silver',journal:'purple'};
   var _gc=_glowMap[m.id]||'teal';
   var _dur={purple:4,green:4.5,orange:4.2,pink:4.8,gold:4.5,cyan:5,teal:4.3}[_gc]||4.5;
-  card.setAttribute('data-glow',_rgb);
   // Inner glow orbs
   var _colMap={skyblue:'56,189,248',silver:'168,162,158',rose:'244,63,94',lime:'132,204,22',blue:'96,165,250',indigo:'139,92,246',purple:'167,139,250',green:'52,211,153',orange:'251,146,60',pink:'249,168,212',gold:'242,201,76',cyan:'34,211,238',teal:'0,229,192'};
   var _rgb=_colMap[_gc]||'0,229,192';
-  card.appendChild(h('div',{attr:{'data-orb':'big'},css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.30),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite, av-orb-breathe 10s ease-in-out '+animSync()+' infinite'}}));
-  card.appendChild(h('div',{attr:{'data-orb':'small'},css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.19),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite, av-orb-breathe2 10s ease-in-out '+animSync()+' infinite'}}));
+  card.setAttribute('data-glow',_rgb);
+  card.appendChild(h('div',{attr:{'data-orb':'big'},css:{position:'absolute',width:'160px',height:'160px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.30),transparent 70%)',top:'-35px',right:'-25px',pointerEvents:'none',animation:'av-drift '+(_dur+5)+'s ease-in-out infinite'}}));
+  card.appendChild(h('div',{attr:{'data-orb':'small'},css:{position:'absolute',width:'80px',height:'80px',borderRadius:'50%',background:'radial-gradient(circle,rgba('+_rgb+',.19),transparent 70%)',bottom:'-10px',left:'5px',pointerEvents:'none',animation:'av-drift2 '+(_dur+7)+'s ease-in-out infinite'}}));
   // i-button — identity color
-  const info=h('div',{css:{position:'absolute',top:'7px',right:'7px',width:'18px',height:'18px',borderRadius:'50%',border:'1px solid '+col+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:col,cursor:'pointer',zIndex:'2',background:col+'10'}});
+  const info=h('div',{css:{position:'absolute',top:'7px',right:'7px',width:'18px',height:'18px',borderRadius:'50%',border:'1px solid '+col+'99',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:col,cursor:'pointer',zIndex:'2',background:col+'1f'}});
   info.textContent='i';
   info.addEventListener('click',function(e){e.stopPropagation();showModuleInfo(m);});
   card.appendChild(info);
@@ -2102,7 +2113,7 @@ function mkModCard4(m, onClick){
   const nm=h('p',{css:{fontFamily:PF,fontSize:'14px',color:m.on?'#F0EEF8':'rgba(255,255,255,.45)',lineHeight:'1.25',fontWeight:'700',marginBottom:'4px'}});
   nm.textContent=m.name;card.appendChild(nm);
   // Description line
-  if(m.desc){const ds=h('p',{css:{fontFamily:CR,fontSize:'10px',color:m.on?col+'80':'rgba(255,255,255,.25)',lineHeight:'1.4',padding:'0 4px'}});ds.textContent=m.desc;card.appendChild(ds);}
+  if(m.desc){const ds=h('p',{css:{fontFamily:CR,fontSize:'10px',color:m.on?col+'91':'rgba(255,255,255,.25)',lineHeight:'1.4',padding:'0 4px'}});ds.textContent=m.desc;card.appendChild(ds);}
   if(!m.on){const cs=h('p',{css:{fontSize:'8px',color:col+'60',marginTop:'3px',letterSpacing:'.06em'}});cs.textContent=t('coming_soon');card.appendChild(cs);}
   if(m.on){
     card.addEventListener('mouseenter',function(){card.style.background=cfg&&cfg.bg?cfg.bg.replace('.12)','.18)'):'rgba(255,255,255,.08)';card.style.borderColor=col+'55';card.style.transform='scale(1.03)';});
@@ -2395,7 +2406,7 @@ function go(scr){
     }
   }
   // Track previous screen for back navigation
-  var moduleScreens=['parallellives','therapist','future','wisdom','blueprint','relationship','dreams','innerchild','timecapsule'];
+  var moduleScreens=['parallellives','therapist','future','wisdom','blueprint','relationship','dreams','innerchild','timecapsule','voicechat'];
   if(moduleScreens.includes(scr)&&scr!==S.scr)S._returnTo=S.scr;
   S.scr=scr;
   try{history.pushState({scr:scr},'','#'+scr);}catch(e){}
@@ -2523,7 +2534,7 @@ function ESP1(){
   function st(){tk=h('div',{css:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}});const av=h('div',{css:{width:'30px',height:'30px',borderRadius:'50%',background:C.tf,border:`1px solid ${C.tb}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'13px',color:C.tl}});av.textContent='◎';tk.appendChild(av);tk.appendChild(dots());md.appendChild(tk);md.scrollTop=md.scrollHeight;}
   async function send(){
     const t=inp.value.trim();if(!t||busy)return;
-    inp.value='';busy=true;sb.disabled=true;inp.disabled=true;
+    inp.value='';inp.style.height='auto';busy=true;sb.disabled=true;inp.disabled=true;
     msg('u',t);S.e1.cnt++;const n=S.e1.cnt;
     const sys=`You are Aevora's awakening guide — warm, poetic, deeply perceptive. Conduct a meaningful intake conversation one question at a time. Ask about what draws them here, emotional state, life challenges, aspirations, patterns. Mirror their language. Be concise (2-4 sentences). No lists.${n>=6?'\nYou have asked enough. Warmly indicate you have gathered insight for their Eternal Self Profile and invite them to continue.':''}`;
     const espCrisis=checkCrisis(t);
@@ -2557,7 +2568,7 @@ function ESP1(){
       md.appendChild(autoEnd);md.scrollTop=md.scrollHeight;
     }
   }
-  sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+  sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
   busy=true;inp.disabled=true;sb.disabled=true;st();
   ai([{role:'user',content:'Begin'}],'You are Aevoras awakening guide. Begin with a warm, poetic welcome to Aevora and one open-hearted question about what draws them here today. Be concise (2-4 sentences). No lists.').then(function(f){
     sd();
@@ -2766,7 +2777,7 @@ function Home(){
     var djIco=h('span',{css:{fontSize:'20px',color:'rgba(167,139,250,.8)',lineHeight:'1',display:'flex',alignItems:'center'}});djIco.textContent='✎';
     var djLabel=h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.16em',textTransform:'uppercase',color:'rgba(167,139,250,.8)'}});djLabel.textContent='Daily Diary';
     djLeft.appendChild(djIco);djLeft.appendChild(djLabel);
-    var djIBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(167,139,250,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'rgba(167,139,250,.6)',cursor:'pointer',background:'rgba(167,139,250,.06)',flexShrink:'0'}});djIBtn.textContent='i';
+    var djIBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(167,139,250,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'#A78BFA',cursor:'pointer',background:'rgba(167,139,250,.12)',flexShrink:'0'}});djIBtn.textContent='i';
     djIBtn.addEventListener('click',function(e){
       e.stopPropagation();
       closeModal();
@@ -2834,7 +2845,7 @@ function Home(){
   var tjLblTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.16em',textTransform:'uppercase',color:GOLD}});
   tjLblTxt.textContent=_periodLabels[dp.period]||"TODAY'S REFLECTION";
   tjLeft.appendChild(tjLblTxt);
-  var tjIBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(242,201,76,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'rgba(242,201,76,.6)',cursor:'pointer',background:'rgba(242,201,76,.06)',flexShrink:'0'}});tjIBtn.textContent='i';
+  var tjIBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(242,201,76,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'#F2C94C',cursor:'pointer',background:'rgba(242,201,76,.12)',flexShrink:'0'}});tjIBtn.textContent='i';
   tjIBtn.addEventListener('click',function(e){
     e.stopPropagation();
     closeModal();
@@ -2887,7 +2898,7 @@ function Home(){
       var wLeft=h('div',{css:{display:'flex',alignItems:'center',gap:'7px'}});
       wLeft.appendChild(h('span',{css:{fontSize:'20px',color:'#22D3EE',lineHeight:'1',display:'flex',alignItems:'center'}},'\u2736'));
       wLeft.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.16em',textTransform:'uppercase',color:'rgba(34,211,238,.88)'}},'WISDOM ORACLE'));
-      var wIBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(34,211,238,.22)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'rgba(34,211,238,.7)',cursor:'pointer',background:'rgba(34,211,238,.06)',flexShrink:'0'}});wIBtn.textContent='i';
+      var wIBtn=h('div',{css:{width:'18px',height:'18px',borderRadius:'50%',border:'1px solid rgba(34,211,238,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'#22D3EE',cursor:'pointer',background:'rgba(34,211,238,.12)',flexShrink:'0'}});wIBtn.textContent='i';
       wIBtn.addEventListener('click',function(e){
         e.stopPropagation();
         var mod=ALL_MODS.find(function(m){return m.id==='wisdom';})||{id:'wisdom',name:'Wisdom Oracle',on:true,cat:'inner'};
@@ -3136,7 +3147,7 @@ function Therapist(){
 
   // ── Header ──────────────────────────────────────────────────────
   const hdr=h('div',{css:{padding:'16px 20px',borderBottom:`1px solid ${C.bo}`,display:'flex',alignItems:'center',gap:'12px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.6)',backdropFilter:'blur(10px)'}});
-  hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':S._returnTo==='modules'?'Modules':'Home',function(){if(S._fromSim){S._fromSim=false;go('parallellives');}else{go(S._returnTo||'home');}}));
+  hdr.appendChild(mkBackBtn(S._fromSim?'Simulation':S._returnTo==='modules'?'Modules':'Home',function(){saveCurrentToHistory();if(S._fromSim){S._fromSim=false;go('parallellives');}else{go(S._returnTo||'home');}}));
   const hi=h('div',{css:{flex:'1',minWidth:'0'}});
   const thIcn=mkModIcon('therapist');thIcn.style.marginBottom='0';thIcn.style.width='36px';thIcn.style.height='36px';thIcn.style.borderRadius='10px';thIcn.style.flexShrink='0';
   const thRow=h('div',{css:{display:'flex',alignItems:'center',gap:'6px',minWidth:'0'}});thRow.appendChild(thIcn);
@@ -3144,7 +3155,7 @@ function Therapist(){
   const thH2=h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}});thH2.textContent=t('th_title');thTextCol.appendChild(thH2);
   thTextCol.appendChild(h('p',{css:{fontSize:'10px',color:C.tl,letterSpacing:'.1em',fontFamily:CR,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},t('th_subtitle')));
   thRow.appendChild(thTextCol);
-  const thIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(0,229,192,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:TEAL,cursor:'pointer',background:'rgba(0,229,192,.06)',flexShrink:'0'}});thIBtn.textContent='i';
+  const thIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(0,229,192,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:TEAL,cursor:'pointer',background:'rgba(0,229,192,.12)',flexShrink:'0'}});thIBtn.textContent='i';
   thIBtn.addEventListener('click',function(){var _m=ALL_MODS.find(function(m){return m.id==='therapist';});if(_m)showModuleInfo(_m);});
   thRow.appendChild(thIBtn);hi.appendChild(thRow);
   hdr.appendChild(hi);
@@ -3187,7 +3198,14 @@ function Therapist(){
     if(S.th.msgs.length<=2)return;
     if(!S.th.history)S.th.history=[];
     var firstU=S.th.msgs.find(function(m){return m.r==='u';});
-    S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:firstU?firstU.t.substring(0,80):'Session'});
+    var _first3U=S.th.msgs.filter(function(m){return m.r==='u';}).slice(0,3);
+    var _combined=_first3U.map(function(m){return m.t;}).join(' ');
+    var _stops=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw=_combined.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_stops.test(w);});
+    var _title=_kw.slice(0,3).join(' ');
+    if(!_title&&firstU)_title=firstU.t.trim().split(/\s+/).slice(0,3).join(' ');
+    _title=_title.charAt(0).toUpperCase()+_title.slice(1);
+    S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:firstU?firstU.t.substring(0,120):'Session',title:_title||'Session'});
     if(S.th.history.length>20)S.th.history.length=20;
     if(S.user){S.user.th=S.th;saveUser(S.user);}
     try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e){}
@@ -3219,7 +3237,9 @@ function Therapist(){
 
   // Input bar
   const ft=h('div',{css:{padding:'14px 20px',borderTop:`1px solid ${C.bo}`,display:'flex',gap:'8px',position:'relative',zIndex:'1',background:'rgba(13,11,35,0.85)',backdropFilter:'blur(12px)',alignItems:'center'}});
-  const inp=h('input',{cls:'av-in',placeholder:t('th_placeholder'),css:{flex:'1'}});
+  const inp=h('textarea',{cls:'av-in',placeholder:t('th_placeholder'),css:{flex:'1',resize:'none',overflowY:'hidden',minHeight:'44px',maxHeight:'140px',lineHeight:'1.5',padding:'11px 14px',boxSizing:'border-box',fontFamily:'inherit',fontSize:'inherit'}});
+  inp.rows=1;
+  inp.addEventListener('input',function(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,140)+'px';});
   const sb=h('button',{css:{flexShrink:'0',width:'44px',height:'44px',borderRadius:'50%',border:'none',background:'linear-gradient(135deg,'+TEAL+',#00B4A0)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all .25s',boxShadow:'0 2px 12px rgba(0,229,192,.25)'}});
   sb.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D0B23" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
   sb.addEventListener('mouseenter',function(){if(!sb.disabled){sb.style.transform='scale(1.08)';sb.style.boxShadow='0 4px 18px rgba(0,229,192,.4)';}});
@@ -3240,8 +3260,9 @@ function Therapist(){
     var diffMs=now-d;
     var diffMins=Math.floor(diffMs/60000);
     var diffHrs=Math.floor(diffMs/3600000);
-    if(diffMins<60)return diffMins+'m ago';
-    if(diffHrs<24)return diffHrs+'h ago';
+    if(diffMins<1)return 'just now';
+    if(diffMins<60)return diffMins+' min ago';
+    if(diffHrs<24)return diffHrs+' hr ago';
     return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:d.getFullYear()!==now.getFullYear()?'numeric':undefined})+' \u00b7 '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   }
 
@@ -3258,7 +3279,10 @@ function Therapist(){
     cntLbl.textContent='\u00b7 '+(sess.msgs?sess.msgs.length:0)+' messages';
     metaRow.appendChild(dateLbl);metaRow.appendChild(cntLbl);
     hLeft.appendChild(metaRow);
-    var prevTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.48)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0',lineHeight:'1.4'}});
+    var titleTxt=h('p',{css:{fontFamily:PF,fontSize:'13px',color:'rgba(255,255,255,.65)',fontWeight:'500',margin:'0 0 3px',lineHeight:'1.3',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+    titleTxt.textContent=sess.title||(sess.preview?sess.preview.split(' ').slice(0,5).join(' '):' Session');
+    hLeft.appendChild(titleTxt);
+    var prevTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0',lineHeight:'1.4'}});
     prevTxt.textContent='\u201c'+(sess.preview||'Session')+'\u201d';
     hLeft.appendChild(prevTxt);
     hRow.appendChild(hLeft);
@@ -3282,15 +3306,45 @@ function Therapist(){
     }
     // Actions
     var actRow=h('div',{css:{padding:'10px 16px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px'}});
-    var delBtn=h('button',{css:{background:'transparent',border:'none',color:'rgba(255,255,255,.2)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'6px 0',letterSpacing:'.03em',transition:'color .2s'}});
-    delBtn.textContent='Delete';
-    delBtn.addEventListener('mouseenter',function(){delBtn.style.color='rgba(255,80,80,.6)';});
-    delBtn.addEventListener('mouseleave',function(){delBtn.style.color='rgba(255,255,255,.2)';});
+    var delBtn=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',letterSpacing:'.03em',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+    delBtn.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+    delBtn.addEventListener('mouseenter',function(){delBtn.style.color='rgba(255,80,80,.85)';delBtn.style.borderColor='rgba(255,80,80,.5)';delBtn.style.background='rgba(255,80,80,.07)';});
+    delBtn.addEventListener('mouseleave',function(){delBtn.style.color='rgba(255,80,80,.45)';delBtn.style.borderColor='rgba(255,80,80,.2)';delBtn.style.background='transparent';});
     delBtn.addEventListener('click',function(e){
       e.stopPropagation();
-      if(!S.th.history)return;
-      var idx2=S.th.history.indexOf(sess);
-      if(idx2>-1){S.th.history.splice(idx2,1);if(S.user){S.user.th=S.th;saveUser(S.user);}buildHistoryPanel();}
+      // Layer 1 confirmation
+      var confirm1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.7)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+      var confirm1Box=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px',boxShadow:'0 -8px 40px rgba(0,0,0,.5)'}});
+      var c1Title=h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}});c1Title.textContent='Delete this session?';
+      var c1Sub=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}});c1Sub.textContent='This conversation will be removed from your Previous Chats.';
+      var c1Row=h('div',{css:{display:'flex',gap:'10px'}});
+      var c1Cancel=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});c1Cancel.textContent='Cancel';
+      var c1Confirm=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});c1Confirm.textContent='Delete';
+      c1Cancel.addEventListener('click',function(){confirm1.remove();});
+      c1Confirm.addEventListener('click',function(){
+        confirm1.remove();
+        // Layer 2 — final confirmation
+        var confirm2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+        var confirm2Box=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+        var c2Title=h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}});c2Title.textContent='Are you sure?';
+        var c2Sub=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}});c2Sub.textContent='This cannot be undone. The session will be permanently deleted.';
+        var c2Row=h('div',{css:{display:'flex',gap:'10px'}});
+        var c2Cancel=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});c2Cancel.textContent='Cancel';
+        var c2Del=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});c2Del.textContent='Permanently Delete';
+        c2Cancel.addEventListener('click',function(){confirm2.remove();});
+        c2Del.addEventListener('click',function(){
+          confirm2.remove();
+          if(!S.th.history)return;
+          var idx2=S.th.history.indexOf(sess);
+          if(idx2>-1){S.th.history.splice(idx2,1);if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e2){}buildHistoryPanel();}
+        });
+        c2Row.appendChild(c2Cancel);c2Row.appendChild(c2Del);
+        confirm2Box.appendChild(c2Title);confirm2Box.appendChild(c2Sub);confirm2Box.appendChild(c2Row);
+        confirm2.appendChild(confirm2Box);document.getElementById('av').appendChild(confirm2);
+      });
+      c1Row.appendChild(c1Cancel);c1Row.appendChild(c1Confirm);
+      confirm1Box.appendChild(c1Title);confirm1Box.appendChild(c1Sub);confirm1Box.appendChild(c1Row);
+      confirm1.appendChild(confirm1Box);document.getElementById('av').appendChild(confirm1);
     });
     var resumeBtn=h('button',{css:{background:'linear-gradient(135deg,'+TEAL+',#00B4A0)',border:'none',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'500',padding:'8px 16px',borderRadius:'8px',cursor:'pointer',transition:'all .2s',boxShadow:'0 2px 10px rgba(0,229,192,.2)'}});
     resumeBtn.textContent='Resume \u2192';
@@ -3298,6 +3352,10 @@ function Therapist(){
       e.stopPropagation();
       S.th.msgs=sess.msgs.slice();
       if(S.user){S.user.th=S.th;saveUser(S.user);}
+      try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(e2){}
+      // Feed resumed session into ESP insights
+      var uMsgs=S.th.msgs.filter(function(m){return m.r==='u';});
+      if(uMsgs.length>=3)extractTherapistInsights();
       showTab(1);renderMessages();
     });
     actRow.appendChild(delBtn);actRow.appendChild(resumeBtn);
@@ -3389,7 +3447,7 @@ function Therapist(){
   function st(){tk=h('div',{css:{paddingLeft:'40px'}});tk.appendChild(dots());md.appendChild(tk);md.scrollTop=md.scrollHeight;}
   async function send(){
     const txt=inp.value.trim();if(!txt||busy)return;
-    inp.value='';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',txt);
+    inp.value='';inp.style.height='auto';busy=true;sb.disabled=true;sb.style.opacity='0.4';sb.style.transform='scale(1)';inp.disabled=true;msg('u',txt);
     const ctx=buildUserContext('therapist');
     const sys=`You are Aevora's AI Therapist \u2014 deeply empathetic, trauma-informed, compassionate. Be warm, therapeutic. Use reflective listening and gentle reframing. Keep responses 3-5 sentences. Poetic but grounded. End with a gentle question. If crisis detected, gently encourage them to contact their local emergency services or a crisis helpline.${ctx}`;
     S.th.msgs.push({r:'u',t:txt});st();
@@ -3404,7 +3462,7 @@ function Therapist(){
     var uCount=S.th.msgs.filter(function(m2){return m2.r==='u';}).length;
     if(uCount>0&&uCount%5===0){extractTherapistInsights();}
   }
-  sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+  sb.addEventListener('click',send);inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
   return w;
 }
 
@@ -3656,7 +3714,7 @@ function renderSimResult(r, onBack, onNew){
         ev.textContent=km.event;
         row.appendChild(yr);row.appendChild(ev);
         if(i<moments.length-1){
-          const connector=h('div',{css:{position:'absolute',left:'32px',width:'1px',height:'14px',background:'rgba(0,229,192,.2)'}});
+          const connector=h('div',{css:{position:'absolute',left:'32px',width:'1px',height:'14px',background:'rgba(0,229,192,.12)'}});
         }
         tmList.appendChild(row);
       });
@@ -3900,7 +3958,7 @@ function PL(){
   w.appendChild(homeStars());
   const inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px',overflowY:'auto'}});w.appendChild(inn);
   const hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();go(S._returnTo||'home');}));
   const hi=h('div',{css:{flex:'1'}});
   const plIconWrap=mkModIcon('parallellives');plIconWrap.style.marginBottom='0';plIconWrap.style.width='36px';plIconWrap.style.height='36px';plIconWrap.style.borderRadius='10px';
   var plNameRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -3909,7 +3967,7 @@ function PL(){
   plTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}},t('pl_title')));
   plTextCol.appendChild(h('p',{css:{fontSize:'12px',color:'#F2C94C90',fontFamily:CR}},t('pl_sub')));
   plNameRow.appendChild(plTextCol);
-  var plIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(242,201,76,.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:'#F2C94C',cursor:'pointer',background:'rgba(242,201,76,.08)',flexShrink:'0'}});plIBtn.textContent='i';
+  var plIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(242,201,76,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:'#F2C94C',cursor:'pointer',background:'rgba(242,201,76,.12)',flexShrink:'0'}});plIBtn.textContent='i';
   plIBtn.addEventListener('click',function(){var _m=ALL_MODS.find(function(m){return m.id==='parallellives';});if(_m)showModuleInfo(_m);});
   plNameRow.appendChild(plIBtn);
   hi.appendChild(plNameRow);
@@ -4139,6 +4197,8 @@ function PL(){
 
   simulateInn.appendChild(sb);
   sb.disabled=!S.pl.d.trim()||!S.pl.a.trim();
+  var simHistArea=h('div',{cls:'sim-hist',css:{marginTop:'8px'}});
+  simulateInn.appendChild(simHistArea);
   sb.addEventListener('click',async function(){
     if(!S.pl.d.trim()||!S.pl.a.trim())return;
     S.pl.step='loading';go('parallellives');
@@ -4203,44 +4263,125 @@ function PL(){
     go('parallellives');
   });
   // Past simulations — dynamic, refreshes on each render
+  function _mk2LayerDel(onConfirm, label1, label2){
+      var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+      _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+      _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+      _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+      _db.addEventListener('click',function(e){
+        e.stopPropagation();
+        var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+        var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+        _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},label1||'Delete this session?'));
+        _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},label2||'This will be permanently removed.'));
+        var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+        var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+        var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+        _c1x.addEventListener('click',function(){_c1.remove();});
+        _c1ok.addEventListener('click',function(){
+          _c1.remove();
+          var _c2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+          var _c2b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+          _c2b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}},'Are you sure?'));
+          _c2b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}},'This cannot be undone.'));
+          var _c2r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c2x=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});_c2x.textContent='Cancel';
+          var _c2ok=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});_c2ok.textContent='Permanently Delete';
+          _c2x.addEventListener('click',function(){_c2.remove();});
+          _c2ok.addEventListener('click',function(){_c2.remove();onConfirm();});
+          _c2r.appendChild(_c2x);_c2r.appendChild(_c2ok);_c2b.appendChild(_c2r);_c2.appendChild(_c2b);document.getElementById('av').appendChild(_c2);
+        });
+        _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+      });
+      return _db;
+    }
   function renderSimHistory(){
-    var prev=simulateInn.querySelector('.sim-hist');
-    if(prev)prev.remove();
-    // Migrate old localStorage sims if needed
+    while(simHistArea.firstChild)simHistArea.removeChild(simHistArea.firstChild);
+    // Migrate localStorage if needed
     if(!S.pl.sims||!S.pl.sims.length){
-      try{
-        var old=JSON.parse(localStorage.getItem('aevora_sims')||'[]');
-        if(old.length){S.pl.sims=old;}
-      }catch(e){}
+      try{var old=JSON.parse(localStorage.getItem('aevora_sims')||'[]');if(old.length){S.pl.sims=old;}}catch(e){}
     }
     const sims=getSims();
-    if(!sims.length)return;
-    const pastDiv=h('div',{cls:'sim-hist',css:{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid rgba(242,201,76,.2)'}});
-    pastDiv.appendChild(h('p',{css:{color:GOLD,fontSize:'12px',letterSpacing:'.18em',textTransform:'uppercase',marginBottom:'14px',fontFamily:CR}},t('pl_past')));
-    var simLimit=10;
-    sims.slice(0,simLimit).forEach(function(sim){
-      const card=h('div',{css:{background:'rgba(242,201,76,.04)',border:'1px solid rgba(242,201,76,.15)',borderRadius:'10px',padding:'14px',marginBottom:'10px',cursor:'pointer',transition:'all .2s'}});
-      card.addEventListener('mouseenter',function(){card.style.borderColor='rgba(242,201,76,.35)';card.style.background='rgba(242,201,76,.08)';});
-      card.addEventListener('mouseleave',function(){card.style.borderColor='rgba(242,201,76,.15)';card.style.background='rgba(242,201,76,.04)';});
-      card.addEventListener('click',function(){S.pl.step='detail';S.pl.detail=sim;go('parallellives');});
-      const ct=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}});
-      ct.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'#F0EEF8',flex:'1',marginRight:'8px',lineHeight:'1.4'}},sim.decision.substring(0,65)+(sim.decision.length>65?'...':'')));
-      ct.appendChild(h('span',{css:{fontFamily:CR,fontSize:'11px',color:GOLD,whiteSpace:'nowrap',background:'rgba(242,201,76,.1)',border:'1px solid rgba(242,201,76,.3)',borderRadius:'4px',padding:'2px 6px'}},sim.years+'yr'));
-      card.appendChild(ct);
-      card.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)'}},fmtDate(sim.ts)));
-      pastDiv.appendChild(card);
-    });
-    if(sims.length>10){
-      var seeAllSim=h('button',{css:{width:'100%',padding:'10px',background:'transparent',border:'1px solid rgba(242,201,76,.2)',borderRadius:'10px',color:'rgba(242,201,76,.6)',fontFamily:CR,fontSize:'12px',cursor:'pointer',marginTop:'4px',transition:'all .2s'}});
-      seeAllSim.textContent='See all '+sims.length+' simulations';
-      seeAllSim.addEventListener('click',function(){
-        simLimit=sims.length;
-        var prev=simulateInn.querySelector('.sim-hist');if(prev)prev.remove();
-        renderSimHistory();
-      });
-      pastDiv.appendChild(seeAllSim);
+    // Section header
+    var shd=h('div',{css:{marginTop:'16px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'10px'}});
+    shd.appendChild(h('span',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'700',color:GOLD,lineHeight:'1',opacity:'.9'}},'↺'));
+    shd.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'600',color:'#F0EEF8'}},'Previous Simulations'));
+    if(sims.length)shd.appendChild(h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.28)',letterSpacing:'.04em'}},sims.length+' total'));
+    simHistArea.appendChild(shd);
+    if(!sims.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'32px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}},'Your simulations will appear here after your first session.'));
+      simHistArea.appendChild(_e);return;
     }
-    simulateInn.appendChild(pastDiv);
+    // Date grouping
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    sims.forEach(function(sim){
+      var _d=new Date(sim.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(sim);
+      else if(_dd>=_y)_grps[1].s.push(sim);
+      else if(_now-_d<604800000)_grps[2].s.push(sim);
+      else _grps[3].s.push(sim);
+    });
+    var _num=0;
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;simHistArea.appendChild(_gl);
+      g.s.forEach(function(sim){
+        _num++;
+        var _n=_num;
+        var _expanded=false;
+        var _card=h('div',{css:{background:'rgba(242,201,76,.04)',border:'1px solid rgba(242,201,76,.15)',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        // Meta row: #N + date + years badge
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center',flexWrap:'wrap'}});
+        var _nbadge=h('span',{css:{fontFamily:CR,fontSize:'10px',color:GOLD,background:'rgba(242,201,76,.12)',border:'1px solid rgba(242,201,76,.3)',borderRadius:'4px',padding:'2px 6px',fontWeight:'600'}});_nbadge.textContent='#'+_n;
+        var _diff=_now-new Date(sim.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)'}});
+        _dt.textContent=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(sim.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        var _ybadge=h('span',{css:{fontFamily:CR,fontSize:'10px',color:GOLD,background:'rgba(242,201,76,.1)',border:'1px solid rgba(242,201,76,.25)',borderRadius:'4px',padding:'2px 6px'}});_ybadge.textContent=(sim.years||'?')+'yr';
+        _meta.appendChild(_nbadge);_meta.appendChild(_dt);_meta.appendChild(_ybadge);_hl.appendChild(_meta);
+        // Title: decision
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'14px',color:'rgba(255,255,255,.72)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+        _ttl.textContent=(sim.decision||'').substring(0,70)+(sim.decision&&sim.decision.length>70?'…':'');_hl.appendChild(_ttl);
+        // Preview: alternate path
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});
+        _pv.textContent='“'+(sim.alternate||'').substring(0,80)+'”';_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        // Expanded body
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid rgba(242,201,76,.12)',padding:'14px 16px'}});
+        if(sim.narrative){
+          var _narr=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)',lineHeight:'1.7',marginBottom:'10px'}});
+          _narr.textContent=(sim.narrative||'').substring(0,280)+(sim.narrative&&sim.narrative.length>280?'…':'');_body2.appendChild(_narr);
+        }
+        if(sim.keyMoments&&sim.keyMoments.length){
+          var _kml=h('div',{css:{marginBottom:'10px'}});
+          _kml.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(242,201,76,.55)',marginBottom:'6px'}},'Key Moments'));
+          sim.keyMoments.slice(0,2).forEach(function(km){
+            var _km=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.5)',lineHeight:'1.5',marginBottom:'4px',paddingLeft:'10px',borderLeft:'2px solid rgba(242,201,76,.25)'}});
+            _km.textContent=typeof km==='string'?km:(km.moment||km.title||JSON.stringify(km)).substring(0,120);_kml.appendChild(_km);
+          });_body2.appendChild(_kml);
+        }
+        var _ar=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'8px'}});
+        var _del=_mk2LayerDel(function(){
+          var _i=S.pl.sims?S.pl.sims.indexOf(sim):-1;
+          if(_i>-1){S.pl.sims.splice(_i,1);if(S.user){S.user.pl=S.pl;saveUser(S.user);}try{localStorage.setItem('aevora_sims',JSON.stringify(S.pl.sims));}catch(ex){}renderSimHistory();}
+        },'Delete this simulation?','The full simulation result will be permanently removed.');
+        var _vb=h('button',{css:{background:'linear-gradient(135deg,'+GOLD+',#E5A800)',border:'none',color:'#1a0a00',fontFamily:CR,fontSize:'12px',fontWeight:'600',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _vb.textContent='View Full Simulation →';
+        _vb.addEventListener('click',function(e){e.stopPropagation();S.pl.step='detail';S.pl.detail=sim;go('parallellives');});
+        _ar.appendChild(_del);_ar.appendChild(_vb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?'rgba(242,201,76,.4)':'rgba(242,201,76,.15)';_card.style.background=_expanded?'rgba(242,201,76,.07)':'rgba(242,201,76,.04)';});
+        simHistArea.appendChild(_card);
+      });
+    });
   }
   renderSimHistory();
   // Refresh after returning from result
@@ -4418,6 +4559,25 @@ function JournalPage(){
   privBadge.appendChild(h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(0,229,192,.6)',letterSpacing:'.1em'}},'Only you can see this'));
   jTitleWrap.appendChild(privBadge);
   jTitleRow.appendChild(jTitleWrap);
+  var jIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(0,229,192,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:TEAL,cursor:'pointer',background:'rgba(0,229,192,.12)',flexShrink:'0'}});
+  jIBtn.textContent='i';jIBtn.title='About Daily Diary';
+  jIBtn.addEventListener('click',function(){
+    var backdrop=h('div',{css:{position:'fixed',inset:0,zIndex:'2000',background:'rgba(13,11,35,0.97)',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px',animation:'av-f .3s ease forwards'}});
+    document.getElementById('av').appendChild(backdrop);
+    backdrop.addEventListener('click',function(ev){if(ev.target===backdrop)backdrop.remove();});
+    var box=h('div',{css:{maxWidth:'380px',width:'100%',background:'rgba(26,16,48,0.98)',border:'1px solid rgba(167,139,250,.25)',borderRadius:'16px',padding:'28px 24px'}});
+    backdrop.appendChild(box);
+    box.appendChild(h('div',{css:{fontSize:'32px',textAlign:'center',marginBottom:'12px'}},'✎'));
+    box.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'600',color:'#F0EEF8',textAlign:'center',marginBottom:'16px'}},'Daily Diary'));
+    [{label:'Private & Confidential',text:'Your diary is completely private. Only you can access your entries — they are never shared, never shown to anyone else, and never used for advertising or profiling. What you write here belongs only to you.'},{label:'What it is',text:'Your personal daily writing space. A few lines each day — thoughts, feelings, what happened, what you noticed. No rules, no format. Just you and the page.'},{label:'What Aevora does',text:'After you write, tap AI Reflect and Aevora reads your entry, names the emotional core, spots patterns, and asks one question that deepens your self-understanding.'},{label:'Why it matters',text:'Every entry quietly feeds your Eternal Self Profile. The Therapist, Future Self, Wisdom Oracle — all grow wiser about you with every entry you write.'}].forEach(function(r){
+      var rc=h('div',{css:{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.06)',borderRadius:'10px',padding:'12px 14px',marginBottom:'10px'}});
+      rc.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(167,139,250,.8)',marginBottom:'6px'}},r.label));
+      rc.appendChild(h('p',{css:{fontFamily:CR,fontSize:'14px',color:'rgba(255,255,255,.72)',lineHeight:'1.65'}},r.text));
+      box.appendChild(rc);
+    });
+    box.appendChild(h('button',{css:{width:'100%',padding:'12px',background:'rgba(167,139,250,.1)',border:'1px solid rgba(167,139,250,.3)',color:'#A78BFA',fontFamily:CR,fontSize:'14px',borderRadius:'8px',cursor:'pointer',marginTop:'4px'},on:{click:function(){backdrop.remove();}}},'Got it'));
+  });
+  jTitleRow.appendChild(jIBtn);
   jTitleRow.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(jTitleRow);
 
@@ -4814,10 +4974,7 @@ function EntryDetailPage(entry,idx,onBack){
   inn.appendChild(thBtn);
 
   return w;
-}
-
-// ── SELF PAGE
-function SelfPage(){
+}function SelfPage(){
   const w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',paddingBottom:'80px'}});
   w.appendChild(homeStars());
   const inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
@@ -4832,6 +4989,10 @@ function SelfPage(){
   selfTitleWrap.appendChild(h('h1',{css:{fontFamily:PF,fontSize:'22px',fontWeight:'600',color:'#F0EEF8',marginBottom:'1px'}},'Your Eternal Self'));
   selfTitleWrap.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(0,229,192,.6)',letterSpacing:'.1em'}},'Personality \u00B7 Values \u00B7 Patterns'));
   hdr.appendChild(selfTitleWrap);
+  var selfIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(0,229,192,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:TEAL,cursor:'pointer',background:'rgba(0,229,192,.12)',flexShrink:'0'}});
+  selfIBtn.textContent='i';selfIBtn.title='About Eternal Self';
+  selfIBtn.addEventListener('click',function(){showModuleInfo({id:'self',name:'Your Eternal Self',desc:'A living psychological profile — the intelligence behind every personalised Aevora experience.',on:true,cat:'utility'});});
+  hdr.appendChild(selfIBtn);
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(0,229,192,.08),transparent)',border:'1px solid rgba(0,229,192,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(0,229,192,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(hdr);
 
@@ -6155,6 +6316,8 @@ function buildPLAnalyseTab(analyseInn){
   aBtn.addEventListener('mouseenter',function(){aBtn.style.transform='translateY(-1px)';aBtn.style.boxShadow='0 4px 24px rgba(255,107,107,.4)';});
   aBtn.addEventListener('mouseleave',function(){aBtn.style.transform='';aBtn.style.boxShadow='0 2px 16px rgba(255,107,107,.25)';});
   analyseInn.appendChild(aBtn);
+  var anaHistArea=h('div',{css:{marginTop:'8px'}});
+  analyseInn.appendChild(anaHistArea);
   var aResults=h('div',{});analyseInn.appendChild(aResults);
 
   function getSaved(){try{return JSON.parse(localStorage.getItem('aevora_regret')||'[]');}catch{return[];}}
@@ -6231,74 +6394,100 @@ function buildPLAnalyseTab(analyseInn){
   }
 
   function renderHistory(){
-    var prev=analyseInn.querySelector('.hist-section');
-    if(prev)prev.remove();
-    // Merge localStorage fallback into S.pl.analyses
+    while(anaHistArea.firstChild)anaHistArea.removeChild(anaHistArea.firstChild);
+    // Merge localStorage fallback
     if(!S.pl.analyses||!S.pl.analyses.length){
       try{
-        // Try aevora_analyses first (current key), then aevora_regret (legacy key)
         var old=JSON.parse(localStorage.getItem('aevora_analyses')||'[]');
         if(!old.length)old=JSON.parse(localStorage.getItem('aevora_regret')||'[]');
-        if(old.length){
-          S.pl.analyses=old.map(function(p){return{ts:p.ts,domains:[p.domain||'general'],horizon:'',pathA:p.decision||'',pathB:'',data:p.data};});
-        }
+        if(old.length){S.pl.analyses=old.map(function(p){return{ts:p.ts,domains:[p.domain||'general'],horizon:'',pathA:p.decision||'',pathB:'',data:p.data};});}
       }catch(e){}
     }
     var analyses=(S.pl&&S.pl.analyses)||[];
+    // Section header
+    var shd=h('div',{css:{marginTop:'16px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'10px'}});
+    shd.appendChild(h('span',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'700',color:'rgba(255,107,107,.9)',lineHeight:'1'}},'↺'));
+    shd.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'600',color:'#F0EEF8'}},'Previous Analyses'));
+    shd.appendChild(h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.28)',letterSpacing:'.04em'}},analyses.length+' total'));
+    anaHistArea.appendChild(shd);
     if(!analyses.length){
-      var aeDiv=h('div',{css:{textAlign:'center',padding:'32px 20px',marginTop:'16px'}});
-      var aeIco=h('div',{css:{width:'48px',height:'48px',borderRadius:'50%',background:'rgba(255,107,107,.08)',border:'1px solid rgba(255,107,107,.2)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}});
-      aeIco.innerHTML='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,107,.7)" stroke-width="1.6" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
-      aeDiv.appendChild(aeIco);
-      aeDiv.appendChild(h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'16px',color:'rgba(255,255,255,.55)',marginBottom:'8px'}},'No analyses yet'));
-      aeDiv.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.3)',lineHeight:'1.6'}},'Run your first path analysis above to see deep insights about your choices.'));
-      analyseInn.appendChild(aeDiv);return;
+      var _ae=h('div',{css:{textAlign:'center',padding:'32px 20px'}});
+      _ae.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _ae.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}},'Your analyses will appear here after your first session.'));
+      anaHistArea.appendChild(_ae);return;
     }
-    var sec=h('div',{cls:'hist-section'});
-    sec.appendChild(h('div',{css:{height:'1px',background:'linear-gradient(to right,rgba(255,107,107,.3),transparent)',margin:'20px 0 14px'}}));
-    sec.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(255,107,107,.7)',marginBottom:'10px',marginTop:'4px'}},'Previous Analyses'));
-    var anaLimit=5;
-    analyses.slice(0,anaLimit).forEach(function(p){
-      var d=p.data||{};
-      var pA=d.pathA||{};var pB=d.pathB||{};
-      var winner=d.verdict==='A'?pA:pB;
-      var winCol=d.verdict==='A'?'#60A5FA':'#34D399';
-      var c=h('div',{css:{background:'rgba(255,107,107,.04)',border:'1px solid rgba(255,107,107,.15)',borderRadius:'12px',padding:'12px 14px',marginBottom:'8px',cursor:'pointer',transition:'all .2s'},on:{click:function(){S.pl.aDetail={ts:p.ts,pathA:p.pathA,pathB:p.pathB,domains:p.domains,horizon:p.horizon,data:d};S.pl.step='analyseDetail';go('parallellives');}}});
-      c.addEventListener('mouseenter',function(){c.style.borderColor='rgba(255,107,107,.35)';c.style.background='rgba(255,107,107,.08)';});
-      c.addEventListener('mouseleave',function(){c.style.borderColor='rgba(255,107,107,.15)';c.style.background='rgba(255,107,107,.04)';});
-      var top=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}});
-      var names=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.7)',flex:'1',marginRight:'8px',lineHeight:'1.5'}});
-      names.textContent=(pA.name||p.pathA||'Path A').substring(0,28)+' vs '+(pB.name||p.pathB||'Path B').substring(0,28);
-      var badge=h('span',{css:{fontFamily:CR,fontSize:'11px',color:winCol,background:'rgba(255,255,255,.05)',border:'1px solid '+winCol+'40',borderRadius:'8px',padding:'2px 8px',flexShrink:'0',whiteSpace:'nowrap'}});
-      badge.textContent='Path '+(d.verdict||'?')+' wins';
-      top.appendChild(names);top.appendChild(badge);c.appendChild(top);
-      var bot=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center'}});
-      var dom=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.3)'}});
-      dom.textContent=(p.domains&&p.domains.length?p.domains.slice(0,2).join(', '):'general')+(p.horizon?' · '+p.horizon:'');
-      var dt=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.3)'}});dt.textContent=fmtJournalDate(p.ts);
-      bot.appendChild(dom);bot.appendChild(dt);
-      // Enrich button for old analyses missing new fields
-      var idx=(function(pp){return analyses.indexOf(pp);})(p);
-      if(!d.crossroadsInsight){
-        var eb=h('button',{cls:'enrich-btn',css:{fontFamily:CR,fontSize:'10px',color:GOLD,background:'rgba(242,201,76,.08)',border:'1px solid rgba(242,201,76,.25)',borderRadius:'8px',padding:'2px 8px',cursor:'pointer',flexShrink:'0',marginLeft:'6px'}});
-        eb.textContent='Enrich ✦';
-        eb.addEventListener('click',function(e){e.stopPropagation();enrichAnalysis(idx,c);});
-        bot.appendChild(eb);
-      }
-      c.appendChild(bot);
-      sec.appendChild(c);
+    // Date grouping
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    analyses.forEach(function(p){
+      var _d=new Date(p.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(p);
+      else if(_dd>=_y)_grps[1].s.push(p);
+      else if(_now-_d<604800000)_grps[2].s.push(p);
+      else _grps[3].s.push(p);
     });
-    if(analyses.length>5){
-      var seeAllAna=h('button',{css:{width:'100%',padding:'10px',background:'transparent',border:'1px solid rgba(255,107,107,.2)',borderRadius:'10px',color:'rgba(255,107,107,.6)',fontFamily:CR,fontSize:'12px',cursor:'pointer',marginTop:'4px',transition:'all .2s'}});
-      seeAllAna.textContent='See all '+analyses.length+' analyses';
-      seeAllAna.addEventListener('click',function(){
-        anaLimit=analyses.length;
-        var prev=analyseInn.querySelector('.hist-section');if(prev)prev.remove();
-        renderHistory();
+    var _num=0;
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;anaHistArea.appendChild(_gl);
+      g.s.forEach(function(p){
+        _num++;var _n=_num;
+        var _d2=p.data||{};var _pA=_d2.pathA||{};var _pB=_d2.pathB||{};
+        var _winner=_d2.verdict==='A'?_pA:_pB;
+        var _winCol=_d2.verdict==='A'?'#60A5FA':'#84CC16';
+        var _expanded=false;
+        var _ACOL='rgba(255,107,107,';
+        var _card=h('div',{css:{background:_ACOL+'.04)',border:'1px solid '+_ACOL+'.15)',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'6px',marginBottom:'5px',alignItems:'center',flexWrap:'wrap'}});
+        var _nbadge=h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,107,107,.8)',background:'rgba(255,107,107,.1)',border:'1px solid rgba(255,107,107,.3)',borderRadius:'4px',padding:'2px 6px',fontWeight:'600'}});_nbadge.textContent='#'+_n;
+        var _diff=_now-new Date(p.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)'}});
+        _dt.textContent=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(p.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        _meta.appendChild(_nbadge);_meta.appendChild(_dt);
+        if(p.domains&&p.domains.length){p.domains.slice(0,2).forEach(function(dm){var _dm=h('span',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(255,255,255,.35)',background:'rgba(255,255,255,.05)',borderRadius:'4px',padding:'2px 6px'}});_dm.textContent=dm;_meta.appendChild(_dm);});}
+        _hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'14px',color:'rgba(255,255,255,.72)',fontWeight:'500',margin:'0 0 4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+        var _pAName=(_pA.name||p.pathA||'Path A').substring(0,30);
+        var _pBName=(_pB.name||p.pathB||'Path B').substring(0,30);
+        _ttl.textContent=_pAName+' vs '+_pBName;_hl.appendChild(_ttl);
+        var _badge=h('div',{css:{display:'flex',alignItems:'center',gap:'6px',marginBottom:'2px'}});
+        var _winBadge=h('span',{css:{fontFamily:CR,fontSize:'11px',color:_winCol,background:'rgba(255,255,255,.05)',border:'1px solid '+_winCol+'40',borderRadius:'6px',padding:'2px 8px'}});
+        _winBadge.textContent='Path '+(_d2.verdict||'?')+' wins';
+        if(_winner.pct){var _pct=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)'}});_pct.textContent='· '+_winner.pct+'% lower regret';_badge.appendChild(_pct);}
+        _badge.appendChild(_winBadge);_hl.appendChild(_badge);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid rgba(255,107,107,.12)',padding:'14px 16px'}});
+        if(_winner.why){
+          var _why=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)',lineHeight:'1.7',marginBottom:'10px'}});
+          _why.textContent=(_winner.why||'').substring(0,220)+((_winner.why||'').length>220?'…':'');_body2.appendChild(_why);
+        }
+        if(_d2.crossroadsInsight){
+          var _ci=h('div',{css:{background:'rgba(255,107,107,.06)',borderRadius:'8px',border:'1px solid rgba(255,107,107,.15)',padding:'10px 12px',marginBottom:'10px'}});
+          _ci.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(255,107,107,.6)',marginBottom:'5px'}},'Crossroads Insight'));
+          var _ciTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.55)',lineHeight:'1.6',margin:'0'}});
+          _ciTxt.textContent=(_d2.crossroadsInsight||'').substring(0,200)+((_d2.crossroadsInsight||'').length>200?'…':'');
+          _ci.appendChild(_ciTxt);_body2.appendChild(_ci);
+        }
+        var _ar=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'8px'}});
+        var _del=_mk2LayerDel(function(){
+          var _arr=S.pl.analyses||[];var _i=_arr.indexOf(p);
+          if(_i>-1){_arr.splice(_i,1);if(S.user){S.user.pl=S.pl;saveUser(S.user);}try{localStorage.setItem('aevora_analyses',JSON.stringify(_arr));}catch(ex){}renderHistory();}
+        },'Delete this analysis?','The full analysis result will be permanently removed.');
+        var _vb=h('button',{css:{background:'linear-gradient(135deg,rgba(255,107,107,.85),rgba(220,38,38,.7))',border:'none',color:'#fff',fontFamily:CR,fontSize:'12px',fontWeight:'600',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _vb.textContent='View Full Analysis →';
+        _vb.addEventListener('click',function(e){e.stopPropagation();S.pl.aDetail={ts:p.ts,pathA:p.pathA,pathB:p.pathB,domains:p.domains,horizon:p.horizon,data:_d2};S.pl.step='analyseDetail';go('parallellives');});
+        _ar.appendChild(_del);_ar.appendChild(_vb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?_ACOL+'.4)':_ACOL+'.15)';_card.style.background=_expanded?_ACOL+'.07)':_ACOL+'.04)';});
+        anaHistArea.appendChild(_card);
       });
-      sec.appendChild(seeAllAna);
-    }
-    analyseInn.appendChild(sec);
+    });
   }
   renderHistory();
   if(S.pl&&S.pl._rebuildAnalyse){S.pl._rebuildAnalyse=false;setTimeout(renderHistory,100);}
@@ -6818,7 +7007,7 @@ function BlueprintPage(){
 
   // ── Header — matches Parallel Lives pattern
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'20px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1'}});
   var bIco=mkModIcon('blueprint');bIco.style.marginBottom='0';bIco.style.width='36px';bIco.style.height='36px';bIco.style.borderRadius='10px';bIco.style.flexShrink='0';
   var bpMod=ALL_MODS.find(function(m){return m.id==='blueprint';})||{id:'blueprint',name:'Life Blueprint'};
@@ -6828,7 +7017,7 @@ function BlueprintPage(){
   bpTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}},'Life Blueprint'));
   bpTextCol.appendChild(h('p',{css:{fontSize:'12px',color:'#38BDF890',fontFamily:CR}},'Life Purpose · Career'));
   nameRow.appendChild(bpTextCol);
-  var iBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(56,189,248,.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:'#38BDF8',cursor:'pointer',background:'rgba(56,189,248,.08)',flexShrink:'0'}});iBtn.textContent='i';
+  var iBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(56,189,248,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:'#38BDF8',cursor:'pointer',background:'rgba(56,189,248,.12)',flexShrink:'0'}});iBtn.textContent='i';
   iBtn.addEventListener('click',function(){showModuleInfo(bpMod);});
   nameRow.appendChild(iBtn);
   hi.appendChild(nameRow);
@@ -6837,7 +7026,9 @@ function BlueprintPage(){
   inn.appendChild(hdr);
 
   // ── Persist inputs
-  if(!S.blueprint)S.blueprint={purposeAnswers:{},careerAnswers:{}};
+  if(!S.blueprint)S.blueprint={purposeAnswers:{},careerAnswers:{},purposeSessions:[],careerSessions:[]};
+  if(!S.blueprint.purposeSessions)S.blueprint.purposeSessions=[];
+  if(!S.blueprint.careerSessions)S.blueprint.careerSessions=[];
 
   // ── 2 Tabs
   var tabs=[
@@ -7028,6 +7219,7 @@ function BlueprintPage(){
   var genBtn=h('button',{css:{width:'100%',padding:'14px',fontSize:'15px',marginBottom:'20px',background:'linear-gradient(135deg,'+GOLD+',#E5A800)',color:'#1a0a00',border:'none',borderRadius:'12px',fontFamily:CR,fontWeight:'700',cursor:'pointer',letterSpacing:'.06em',transition:'all .2s'}});
   genBtn.textContent='Synthesise My Life Purpose';
   ikigaiForm.appendChild(genBtn);
+  var purposeHistArea=h('div',{css:{marginTop:'8px'}});purposeTab.appendChild(purposeHistArea);
   var purposeResult=h('div',{});purposeTab.appendChild(purposeResult);
 
   genBtn.addEventListener('click',async function(){
@@ -7052,6 +7244,11 @@ function BlueprintPage(){
     S.prof.north_star=data.northStar;
     S.prof.purpose_updated=Date.now();
     S.prof.purpose_values=S.blueprint.selectedValues;
+    // Save to history
+    if(!S.blueprint.purposeSessions)S.blueprint.purposeSessions=[];
+    S.blueprint.purposeSessions.unshift({ts:Date.now(),northStar:data.northStar||'',statement:data.statement||'',ikigai:data.ikigai||'',values:data.values||[],tension:data.tension||''});
+    if(S.blueprint.purposeSessions.length>15)S.blueprint.purposeSessions.length=15;
+    if(typeof renderPurposeHistory==='function')renderPurposeHistory();
     if(S.user){S.user.prof=S.prof;saveUser(S.user);}
     if(S.user){S.user.blueprint=S.blueprint;saveUser(S.user);}
     try{localStorage.setItem('aevora_blueprint',JSON.stringify(S.blueprint));}catch(e){}
@@ -7163,6 +7360,7 @@ function BlueprintPage(){
   careerGenBtn.addEventListener('mouseleave',function(){careerGenBtn.style.boxShadow='0 4px 20px rgba(56,189,248,.2)';careerGenBtn.style.transform='translateY(0)';});
   careerFormDiv.appendChild(careerGenBtn);
 
+  var careerHistArea=h('div',{css:{marginTop:'8px'}});careerTab.appendChild(careerHistArea);
   var careerResult=h('div',{css:{display:'none'}});careerTab.appendChild(careerResult);
 
   function renderCareerResult(data){
@@ -7243,7 +7441,7 @@ function BlueprintPage(){
       data.quarters.forEach(function(q,i){
         var isLast=i===data.quarters.length-1;
         var row=h('div',{css:{position:'relative',marginBottom:isLast?'0':'20px'}});
-        var dot=h('div',{css:{position:'absolute',left:'-28px',top:'8px',width:'12px',height:'12px',borderRadius:'50%',background:'rgba(56,189,248,.2)',border:'2px solid #38BDF8',boxShadow:'0 0 8px rgba(56,189,248,.4)',zIndex:'1'}});
+        var dot=h('div',{css:{position:'absolute',left:'-28px',top:'8px',width:'12px',height:'12px',borderRadius:'50%',background:'rgba(56,189,248,.12)',border:'2px solid #38BDF8',boxShadow:'0 0 8px rgba(56,189,248,.4)',zIndex:'1'}});
         row.appendChild(dot);
         var qLabel=h('p',{css:{fontFamily:CR,fontSize:'10px',color:'rgba(56,189,248,.55)',letterSpacing:'.12em',textTransform:'uppercase',marginBottom:'4px'}});
         qLabel.textContent=(q.quarter||('Q'+(i+1)))+(q.focus?' · '+q.focus:'');
@@ -7299,12 +7497,234 @@ function BlueprintPage(){
     var data={};
     try{data=JSON.parse(rep.replace(/```json|```/g,'').trim());}catch(e){data={summary:rep,strengths:[],capabilityGaps:[],quarters:[],watchOut:''};}
     S.blueprint.careerResult=data;
+    // Save to history
+    if(!S.blueprint.careerSessions)S.blueprint.careerSessions=[];
+    S.blueprint.careerSessions.unshift({ts:Date.now(),summary:data.summary||'',strengths:data.strengths||[],capabilityGaps:data.capabilityGaps||[],quarters:(data.quarters||[]).slice(0,2)});
+    if(S.blueprint.careerSessions.length>15)S.blueprint.careerSessions.length=15;
+    if(typeof renderCareerHistory==='function')renderCareerHistory();
     if(S.user){S.user.blueprint=S.blueprint;saveUser(S.user);}
     try{localStorage.setItem('aevora_blueprint',JSON.stringify(S.blueprint));}catch(e){}
     logSession('blueprint','Career blueprint: '+(data.summary||'').substring(0,80),['career','gaps','roadmap'],{});
     renderCareerResult(data);
   });
 
+  // ── Purpose history ─────────────────────────────────────────────
+  function renderPurposeHistory(){
+    while(purposeHistArea.firstChild)purposeHistArea.removeChild(purposeHistArea.firstChild);
+    var _ss=S.blueprint.purposeSessions||[];
+    var shd=h('div',{css:{marginTop:'16px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'10px'}});
+    shd.appendChild(h('span',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'700',color:'#38BDF8',lineHeight:'1',opacity:'.9'}},'↺'));
+    shd.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'600',color:'#F0EEF8'}},'Previous Purpose Statements'));
+    if(_ss.length)shd.appendChild(h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.28)',letterSpacing:'.04em'}},_ss.length+' total'));
+    purposeHistArea.appendChild(shd);
+    if(!_ss.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'32px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}},'Your purpose statements will appear here after your first synthesis.'));
+      purposeHistArea.appendChild(_e);return;
+    }
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    _ss.forEach(function(sess){
+      var _d=new Date(sess.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(sess);else if(_dd>=_y)_grps[1].s.push(sess);else if(_now-_d<604800000)_grps[2].s.push(sess);else _grps[3].s.push(sess);
+    });
+    var _num=0;
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;purposeHistArea.appendChild(_gl);
+      g.s.forEach(function(sess){
+        _num++;var _n=_num;var _expanded=false;
+        var _BC='#38BDF8';
+        var _card=h('div',{css:{background:'rgba(56,189,248,.04)',border:'1px solid rgba(56,189,248,.15)',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+        var _nb=h('span',{css:{fontFamily:CR,fontSize:'10px',color:_BC,background:'rgba(56,189,248,.12)',border:'1px solid rgba(56,189,248,.3)',borderRadius:'4px',padding:'2px 6px',fontWeight:'600'}});_nb.textContent='#'+_n;
+        var _diff=_now-new Date(sess.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)'}});
+        _dt.textContent=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        _meta.appendChild(_nb);_meta.appendChild(_dt);_hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'14px',color:'rgba(255,255,255,.72)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+        _ttl.textContent=sess.northStar?('“'+sess.northStar+'”'):'Purpose Statement';_hl.appendChild(_ttl);
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});
+        _pv.textContent=(sess.statement||'').substring(0,90)+(sess.statement&&sess.statement.length>90?'…':'');_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid rgba(56,189,248,.12)',padding:'14px 16px'}});
+        if(sess.ikigai){var _ik=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'14px',color:'rgba(255,255,255,.7)',lineHeight:'1.65',marginBottom:'10px'}});_ik.textContent='“'+sess.ikigai+'”';_body2.appendChild(_ik);}
+        if(sess.values&&sess.values.length){
+          var _vrow=h('div',{css:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'10px'}});
+          sess.values.forEach(function(v,vi){var _vp=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'#F59E0B',background:'rgba(253,230,138,.08)',border:'1px solid rgba(253,230,138,.2)',borderRadius:'10px',padding:'3px 10px'}});_vp.textContent=(vi+1)+'. '+v;_vrow.appendChild(_vp);});
+          _body2.appendChild(_vrow);
+        }
+        if(sess.tension){var _ten=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.45)',fontStyle:'italic',lineHeight:'1.6',marginBottom:'10px'}});_ten.textContent=sess.tension;_body2.appendChild(_ten);}
+        if(sess.statement){var _st=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)',lineHeight:'1.7',marginBottom:'10px'}});_st.textContent=sess.statement;_body2.appendChild(_st);}
+        var _ar=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'4px'}});
+        // Delete
+        var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+        _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+        _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+        _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+        _db.addEventListener('click',function(e){
+          e.stopPropagation();
+          var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+          var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+          _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},'Delete this statement?'));
+          _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},'This purpose statement will be permanently removed.'));
+          var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+          var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+          _c1x.addEventListener('click',function(){_c1.remove();});
+          _c1ok.addEventListener('click',function(){
+            _c1.remove();
+            var _c2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+            var _c2b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+            _c2b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}},'Are you sure?'));
+            _c2b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}},'This cannot be undone.'));
+            var _c2r=h('div',{css:{display:'flex',gap:'10px'}});
+            var _c2x=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});_c2x.textContent='Cancel';
+            var _c2ok=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});_c2ok.textContent='Permanently Delete';
+            _c2x.addEventListener('click',function(){_c2.remove();});
+            _c2ok.addEventListener('click',function(){_c2.remove();var _i=S.blueprint.purposeSessions.indexOf(sess);if(_i>-1){S.blueprint.purposeSessions.splice(_i,1);if(S.user){S.user.blueprint=S.blueprint;saveUser(S.user);}try{localStorage.setItem('aevora_blueprint',JSON.stringify(S.blueprint));}catch(ex){}renderPurposeHistory();}});
+            _c2r.appendChild(_c2x);_c2r.appendChild(_c2ok);_c2b.appendChild(_c2r);_c2.appendChild(_c2b);document.getElementById('av').appendChild(_c2);
+          });
+          _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+        });
+        // Restore button
+        var _rb=h('button',{css:{background:'linear-gradient(135deg,'+_BC+',#3B82F6)',border:'none',color:'#050d1a',fontFamily:CR,fontSize:'12px',fontWeight:'600',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _rb.textContent='Restore this statement →';
+        _rb.addEventListener('click',function(e){
+          e.stopPropagation();
+          if(!S.prof)S.prof={};
+          S.prof.purpose_statement=sess.statement;S.prof.north_star=sess.northStar;S.prof.purpose_updated=sess.ts;
+          if(S.user){S.user.prof=S.prof;saveUser(S.user);}
+          purposeResult.innerHTML='';purposeResult.style.display='block';
+          var _rb2=h('div',{css:{background:'rgba(56,189,248,.06)',border:'1px solid rgba(56,189,248,.2)',borderRadius:'12px',padding:'14px 16px',marginBottom:'12px'}});
+          _rb2.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(56,189,248,.6)',marginBottom:'6px'}},'Restored Statement'));
+          if(sess.northStar){var _ns=h('p',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F59E0B',marginBottom:'8px',fontStyle:'italic'}});_ns.textContent='“'+sess.northStar+'”';_rb2.appendChild(_ns);}
+          var _st2=h('p',{css:{fontFamily:PF,fontStyle:'italic',fontSize:'14px',color:'rgba(255,255,255,.75)',lineHeight:'1.7'}});_st2.textContent=sess.statement;_rb2.appendChild(_st2);
+          purposeResult.appendChild(_rb2);
+          _showTab(0);
+        });
+        _ar.appendChild(_db);_ar.appendChild(_rb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?'rgba(56,189,248,.4)':'rgba(56,189,248,.15)';_card.style.background=_expanded?'rgba(56,189,248,.07)':'rgba(56,189,248,.04)';});
+        purposeHistArea.appendChild(_card);
+      });
+    });
+  }
+
+  // ── Career history ───────────────────────────────────────────────
+  function renderCareerHistory(){
+    while(careerHistArea.firstChild)careerHistArea.removeChild(careerHistArea.firstChild);
+    var _ss=S.blueprint.careerSessions||[];
+    var shd=h('div',{css:{marginTop:'16px',marginBottom:'12px',display:'flex',alignItems:'center',gap:'10px'}});
+    shd.appendChild(h('span',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'700',color:'#38BDF8',lineHeight:'1',opacity:'.9'}},'↺'));
+    shd.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'600',color:'#F0EEF8'}},'Previous Career Blueprints'));
+    if(_ss.length)shd.appendChild(h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.28)',letterSpacing:'.04em'}},_ss.length+' total'));
+    careerHistArea.appendChild(shd);
+    if(!_ss.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'32px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}},'Your career blueprints will appear here after your first plan.'));
+      careerHistArea.appendChild(_e);return;
+    }
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    _ss.forEach(function(sess){
+      var _d=new Date(sess.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(sess);else if(_dd>=_y)_grps[1].s.push(sess);else if(_now-_d<604800000)_grps[2].s.push(sess);else _grps[3].s.push(sess);
+    });
+    var _num=0;
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;careerHistArea.appendChild(_gl);
+      g.s.forEach(function(sess){
+        _num++;var _n=_num;var _expanded=false;
+        var _BC='#38BDF8';
+        var _card=h('div',{css:{background:'rgba(56,189,248,.04)',border:'1px solid rgba(56,189,248,.15)',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+        var _nb=h('span',{css:{fontFamily:CR,fontSize:'10px',color:_BC,background:'rgba(56,189,248,.12)',border:'1px solid rgba(56,189,248,.3)',borderRadius:'4px',padding:'2px 6px',fontWeight:'600'}});_nb.textContent='#'+_n;
+        var _diff=_now-new Date(sess.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.35)'}});
+        _dt.textContent=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        _meta.appendChild(_nb);_meta.appendChild(_dt);_hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'14px',color:'rgba(255,255,255,.72)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+        var _twords=(sess.summary||'').trim().split(/\s+/).slice(0,8).join(' ');
+        _ttl.textContent=_twords+(sess.summary&&sess.summary.split(/\s+/).length>8?'…':'');_hl.appendChild(_ttl);
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});
+        var _str=(sess.strengths||[]).slice(0,2).join(' · ');
+        _pv.textContent=_str?('“'+_str+'”'):'';_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid rgba(56,189,248,.12)',padding:'14px 16px'}});
+        if(sess.summary){var _sum=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.65)',lineHeight:'1.7',marginBottom:'10px'}});_sum.textContent=sess.summary;_body2.appendChild(_sum);}
+        if(sess.quarters&&sess.quarters.length){
+          var _ql=h('div',{css:{marginBottom:'10px'}});
+          _ql.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(56,189,248,.55)',marginBottom:'6px'}},'First Milestones'));
+          sess.quarters.forEach(function(q){
+            var _qp=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.5)',lineHeight:'1.5',marginBottom:'4px',paddingLeft:'10px',borderLeft:'2px solid rgba(56,189,248,.25)'}});
+            _qp.textContent=typeof q==='string'?q:(q.milestone||q.goal||JSON.stringify(q)).substring(0,120);_ql.appendChild(_qp);
+          });_body2.appendChild(_ql);
+        }
+        var _ar=h('div',{css:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:'4px'}});
+        var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+        _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+        _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+        _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+        _db.addEventListener('click',function(e){
+          e.stopPropagation();
+          var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+          var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+          _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},'Delete this blueprint?'));
+          _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},'This career blueprint will be permanently removed.'));
+          var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+          var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+          _c1x.addEventListener('click',function(){_c1.remove();});
+          _c1ok.addEventListener('click',function(){
+            _c1.remove();
+            var _c2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+            var _c2b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+            _c2b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}},'Are you sure?'));
+            _c2b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}},'This cannot be undone.'));
+            var _c2r=h('div',{css:{display:'flex',gap:'10px'}});
+            var _c2x=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});_c2x.textContent='Cancel';
+            var _c2ok=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});_c2ok.textContent='Permanently Delete';
+            _c2x.addEventListener('click',function(){_c2.remove();});
+            _c2ok.addEventListener('click',function(){_c2.remove();var _i=S.blueprint.careerSessions.indexOf(sess);if(_i>-1){S.blueprint.careerSessions.splice(_i,1);if(S.user){S.user.blueprint=S.blueprint;saveUser(S.user);}try{localStorage.setItem('aevora_blueprint',JSON.stringify(S.blueprint));}catch(ex){}renderCareerHistory();}});
+            _c2r.appendChild(_c2x);_c2r.appendChild(_c2ok);_c2b.appendChild(_c2r);_c2.appendChild(_c2b);document.getElementById('av').appendChild(_c2);
+          });
+          _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+        });
+        var _vb=h('button',{css:{background:'linear-gradient(135deg,'+_BC+',#3B82F6)',border:'none',color:'#050d1a',fontFamily:CR,fontSize:'12px',fontWeight:'600',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _vb.textContent='View Full Blueprint →';
+        _vb.addEventListener('click',function(e){
+          e.stopPropagation();
+          careerResult.innerHTML='';careerResult.style.display='block';
+          renderCareerResult(sess);
+          _showTab(1);
+        });
+        _ar.appendChild(_db);_ar.appendChild(_vb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?'rgba(56,189,248,.4)':'rgba(56,189,248,.15)';_card.style.background=_expanded?'rgba(56,189,248,.07)':'rgba(56,189,248,.04)';});
+        careerHistArea.appendChild(_card);
+      });
+    });
+  }
+  // Also expose _showTab for use in history buttons
+  function _showTab(idx){activeTab=idx;contents.forEach(function(c,i){c.style.display=i===idx?'block':'none';});}
+  renderPurposeHistory();
+  renderCareerHistory();
   return w;
 }
 
@@ -7316,9 +7736,9 @@ function FuturePage(){
   var FS_BG='rgba(132,204,22,.10)';
   var FS_BORDER='rgba(132,204,22,.28)';
 
-  if(!S.future)S.future={horizon:null,msgs:[],integrated:false,integration:null};
+  if(!S.future)S.future={horizon:null,msgs:[],integrated:false,integration:null,sessions:[]};
 
-  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'60px'}});
+  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'80px'}});
   w.appendChild(homeStars());
   var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'80px'}});
   w.appendChild(scrl);
@@ -7333,7 +7753,7 @@ function FuturePage(){
   // ── Header
   var fsMod=ALL_MODS.find(function(m){return m.id==='future';})||{id:'future',name:'Future Self Mirror'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1',minWidth:'0'}});
   var fIco=mkModIcon('future');fIco.style.marginBottom='0';fIco.style.width='36px';fIco.style.height='36px';fIco.style.borderRadius='10px';fIco.style.flexShrink='0';
   var fRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -7342,7 +7762,7 @@ function FuturePage(){
   fTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'17px',fontWeight:'600',color:'#F0EEF8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},'Future Self Mirror'));
   fTextCol.appendChild(h('p',{css:{fontSize:'11px',color:FS_COL+'90',fontFamily:CR,letterSpacing:'.1em',whiteSpace:'nowrap'}},'Speak with your elder self'));
   fRow.appendChild(fTextCol);
-  var fsIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(132,204,22,.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:FS_COL,cursor:'pointer',background:'rgba(132,204,22,.08)',flexShrink:'0'}});fsIBtn.textContent='i';
+  var fsIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(132,204,22,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:FS_COL,cursor:'pointer',background:'rgba(132,204,22,.12)',flexShrink:'0'}});fsIBtn.textContent='i';
   fsIBtn.addEventListener('click',function(){showModuleInfo(fsMod);});
   fRow.appendChild(fsIBtn);
   hi.appendChild(fRow);
@@ -7350,6 +7770,23 @@ function FuturePage(){
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(132,204,22,.08),transparent)',border:'1px solid rgba(132,204,22,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(132,204,22,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(hdr);
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'28px'}},'Your future self knows your values, your fears, your patterns, and the choices you are wrestling with right now. They speak from lived experience \u2014 honest, warm, and unafraid to tell you what they wish they had known.'));
+
+  // ── Tab bar ─────────────────────────────────────────────────────
+  var _tabPill=h('div',{css:{display:'flex',background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'4px',margin:'0 0 16px'}});
+  var _tab1=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'1px solid '+FS_COL+'50',background:FS_COL+'20',color:FS_COL,fontFamily:CR,fontSize:'13px',fontWeight:'600',cursor:'pointer',transition:'all .2s'}},'New Session');
+  var _tab2=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'none',background:'transparent',color:'rgba(255,255,255,.4)',fontFamily:CR,fontSize:'13px',fontWeight:'400',cursor:'pointer',transition:'all .2s'}},'Previous Sessions');
+  _tabPill.appendChild(_tab1);_tabPill.appendChild(_tab2);
+  var _p1=h('div',{});
+  var _hist=h('div',{css:{display:'none'}});
+  function _showTab(n){
+    if(n===1){_p1.style.display='block';_hist.style.display='none';_tab1.style.background=FS_COL+'20';_tab1.style.border='1px solid '+FS_COL+'50';_tab1.style.color=FS_COL;_tab1.style.fontWeight='600';_tab2.style.background='transparent';_tab2.style.border='none';_tab2.style.color='rgba(255,255,255,.4)';_tab2.style.fontWeight='400';}
+    else{_p1.style.display='none';_hist.style.display='block';_buildHist();_tab2.style.background=FS_COL+'20';_tab2.style.border='1px solid '+FS_COL+'50';_tab2.style.color=FS_COL;_tab2.style.fontWeight='600';_tab1.style.background='transparent';_tab1.style.border='none';_tab1.style.color='rgba(255,255,255,.4)';_tab1.style.fontWeight='400';}
+  }
+  _tab1.addEventListener('click',function(){_showTab(1);});
+  _tab2.addEventListener('click',function(){_showTab(2);});
+  inn.appendChild(_tabPill);
+  inn.appendChild(_p1);
+  inn.appendChild(_hist);
 
   // ── Section header helper
   function sHdr(num,title,sub){
@@ -7373,7 +7810,7 @@ function FuturePage(){
   // ══════════════════════
   // SECTION 01 — Horizon
   // ══════════════════════
-  inn.appendChild(sHdr('01','Your Horizon','Choose how far forward to project'));
+  _p1.appendChild(sHdr('01','Your Horizon','Choose how far forward to project'));
 
   var HORIZONS=[
     {y:5,  label:'5 years',  desc:'Clearer',     detail:'Close enough to feel real. Your future self is navigating the direct consequences of what you are doing right now.'},
@@ -7433,14 +7870,14 @@ function FuturePage(){
   customYearInput.addEventListener('click',function(e){e.stopPropagation();});
   customYearCard.addEventListener('click',function(){customYearInput.focus();});
   hRow.appendChild(customYearCard);
-  inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)',marginBottom:'12px',textAlign:'center',letterSpacing:'.04em'}},'Enter any year between 1 and 50 in the custom box'));
-  inn.appendChild(hRow);
-  inn.appendChild(descPanel);
+  _p1.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)',marginBottom:'12px',textAlign:'center',letterSpacing:'.04em'}},'Enter any year between 1 and 50 in the custom box'));
+  _p1.appendChild(hRow);
+  _p1.appendChild(descPanel);
 
   // ══════════════════════
   // SECTION 02 — Conversation
   // ══════════════════════
-  inn.appendChild(sHdr('02','The Conversation','Your future self remembers everything that lies ahead'));
+  _p1.appendChild(sHdr('02','The Conversation','Your future self remembers everything that lies ahead'));
 
   var sec02Wrap=h('div',{css:{position:'relative',borderRadius:'16px',marginBottom:'28px'}});
   var sec02Inner=h('div',{});
@@ -7595,14 +8032,14 @@ function FuturePage(){
   sec02Wrap.appendChild(sec02Inner);
   var lock02=lockOverlay('Select a horizon above to begin the conversation');
   sec02Wrap.appendChild(lock02);
-  inn.appendChild(sec02Wrap);
+  _p1.appendChild(sec02Wrap);
 
   // History is preserved in S.future — user selects horizon to resume or start fresh
 
   // ══════════════════════
   // SECTION 03 — What They Told You
   // ══════════════════════
-  inn.appendChild(sHdr('03','What They Told You','Key wisdom extracted from your conversation'));
+  _p1.appendChild(sHdr('03','What They Told You','Key wisdom extracted from your conversation'));
 
   var sec03Wrap=h('div',{css:{position:'relative',borderRadius:'16px',marginBottom:'28px'}});
   var intBtn=h('button',{cls:'av-btn',css:{width:'100%',padding:'13px',borderColor:'rgba(132,204,22,.5)',color:FS_COL,background:FS_BG,fontSize:'14px',marginBottom:'16px',opacity:'.4'}});
@@ -7613,7 +8050,7 @@ function FuturePage(){
   sec03Wrap.appendChild(intResult);
   var lock03=lockOverlay('Have at least 5 exchanges with your future self to unlock');
   sec03Wrap.appendChild(lock03);
-  inn.appendChild(sec03Wrap);
+  _p1.appendChild(sec03Wrap);
 
   // ══════════════════════
   // Chat engine
@@ -7810,6 +8247,126 @@ function FuturePage(){
     }
   }
 
+  // ── Session save ────────────────────────────────────────────────
+  function _saveSession(){
+    var _uMsgs=S.future.msgs.filter(function(m){return m.role==='user';});
+    if(_uMsgs.length<1)return;
+    if(!S.future.sessions)S.future.sessions=[];
+    var _comb=_uMsgs.slice(0,3).map(function(m){return m.content;}).join(' ');
+    var _stop=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw=_comb.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_stop.test(w);});
+    var _tit=_kw.slice(0,3).join(' ')||_uMsgs[0].content.trim().split(/\s+/).slice(0,3).join(' ');
+    _tit=_tit.charAt(0).toUpperCase()+_tit.slice(1);
+    var _hz=S.future.horizon?(' · '+S.future.horizon):'';
+    S.future.sessions.unshift({ts:Date.now(),msgs:S.future.msgs.slice(),horizon:S.future.horizon,title:_tit+_hz,preview:_uMsgs[0].content.substring(0,100)});
+    if(S.future.sessions.length>15)S.future.sessions.length=15;
+    if(S.user){S.user.future=S.future;saveUser(S.user);}try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(ex){}
+  }
+
+  // ── Previous Sessions panel ──────────────────────────────────────
+  function _buildHist(){
+    while(_hist.firstChild)_hist.removeChild(_hist.firstChild);
+    var _ss=S.future.sessions||[];
+    if(!_ss.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'48px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.18)',lineHeight:'1.6'}},'Conversations with your future self will appear here after your first session.'));
+      _hist.appendChild(_e);return;
+    }
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    _ss.forEach(function(sess){
+      var _d=new Date(sess.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(sess);
+      else if(_dd>=_y)_grps[1].s.push(sess);
+      else if(_now-_d<604800000)_grps[2].s.push(sess);
+      else _grps[3].s.push(sess);
+    });
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;_hist.appendChild(_gl);
+      g.s.forEach(function(sess){
+        var _expanded=false;
+        var _card=h('div',{css:{background:FS_COL+'08',border:'1px solid '+FS_COL+'18',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+        var _diff=_now-new Date(sess.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:FS_COL,opacity:'.75'}});
+        _dt.textContent=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        var _cnt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)'}});_cnt.textContent='· '+(sess.msgs?sess.msgs.length:0)+' messages';
+        _meta.appendChild(_dt);_meta.appendChild(_cnt);_hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'13px',color:'rgba(255,255,255,.65)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});_ttl.textContent=sess.title||'Session';_hl.appendChild(_ttl);
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});_pv.textContent='“'+(sess.preview||'')+'”';_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid '+FS_COL+'12'}});
+        if(sess.msgs&&sess.msgs.length){
+          var _bw=h('div',{css:{padding:'14px 16px 10px',maxHeight:'320px',overflowY:'auto'}});
+          sess.msgs.forEach(function(m){
+            var _isU=m.role==='user';
+            var _br=h('div',{css:{display:'flex',flexDirection:_isU?'row-reverse':'row',marginBottom:'10px',gap:'8px',alignItems:'flex-start'}});
+            if(!_isU){var _av=h('div',{css:{width:'24px',height:'24px',borderRadius:'50%',background:FS_COL+'15',border:'1px solid '+FS_COL+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'10px',color:FS_COL}});_av.textContent='◎';_br.appendChild(_av);}
+            var _bb=h('div',{css:{maxWidth:'78%',padding:'9px 13px',borderRadius:_isU?'12px 12px 2px 12px':'12px 12px 12px 2px',background:_isU?FS_COL+'12':'rgba(255,255,255,.04)',border:'1px solid '+(_isU?FS_COL+'30':'rgba(255,255,255,.07)'),fontFamily:CR,fontSize:'13px',lineHeight:'1.65',color:'rgba(255,255,255,.7)'}});
+            _bb.textContent=m.content||'';_br.appendChild(_bb);_bw.appendChild(_br);
+          });_body2.appendChild(_bw);
+        }
+        var _ar=h('div',{css:{padding:'10px 16px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}});
+        var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+        _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+        _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+        _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+        _db.addEventListener('click',function(e){
+          e.stopPropagation();
+          var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+          var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+          _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},'Delete this session?'));
+          _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},'This conversation will be permanently removed.'));
+          var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+          var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+          _c1x.addEventListener('click',function(){_c1.remove();});
+          _c1ok.addEventListener('click',function(){
+            _c1.remove();
+            var _c2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+            var _c2b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+            _c2b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}},'Are you sure?'));
+            _c2b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}},'This cannot be undone.'));
+            var _c2r=h('div',{css:{display:'flex',gap:'10px'}});
+            var _c2x=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});_c2x.textContent='Cancel';
+            var _c2ok=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});_c2ok.textContent='Permanently Delete';
+            _c2x.addEventListener('click',function(){_c2.remove();});
+            _c2ok.addEventListener('click',function(){
+              _c2.remove();
+              var _arr=S.future.sessions||[];var _i=_arr.indexOf(sess);
+              if(_i>-1){_arr.splice(_i,1);if(S.user){S.user.future=S.future;saveUser(S.user);}try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(ex){}_buildHist();}
+            });
+            _c2r.appendChild(_c2x);_c2r.appendChild(_c2ok);_c2b.appendChild(_c2r);_c2.appendChild(_c2b);document.getElementById('av').appendChild(_c2);
+          });
+          _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+        });
+        _ar.appendChild(_db);
+        var _rb=h('button',{css:{background:'linear-gradient(135deg,'+FS_COL+','+FS_COL+'cc)',border:'none',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'500',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _rb.textContent='Resume →';
+        _rb.addEventListener('click',function(e){
+          e.stopPropagation();
+          S.future.msgs=sess.msgs.slice();
+          if(sess.horizon)S.future.horizon=sess.horizon;
+          if(S.user){S.user.future=S.future;saveUser(S.user);}
+          try{localStorage.setItem('aevora_future',JSON.stringify(S.future));}catch(ex){}
+          _showTab(1);
+          setTimeout(function(){rebuildMsgs();},50);
+        });
+        _ar.appendChild(_rb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?FS_COL+'40':FS_COL+'18';});
+        _hist.appendChild(_card);
+      });
+    });
+  }
   return w;
 }
 
@@ -7860,10 +8417,13 @@ function getSeasonalArchetypes(){
 
 function DreamPage(){
   var DREAM_COL='#8B5CF6';
-  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'100px'}});
+  var w=h('div',{css:{position:'relative',height:'100vh',overflow:'hidden',background:'transparent',display:'flex',flexDirection:'column'}});
   w.appendChild(homeStars());
-  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'100px'}});
+
+  var scrl=h('div',{css:{flex:'1',overflowY:'auto',paddingBottom:'80px'}});
   w.appendChild(scrl);
+
+
   var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
@@ -7873,7 +8433,7 @@ function DreamPage(){
 
   // ── Header
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1'}});
   var dIco=mkModIcon('dreams');dIco.style.marginBottom='0';dIco.style.width='36px';dIco.style.height='36px';dIco.style.borderRadius='10px';dIco.style.flexShrink='0';
   var dMod=ALL_MODS.find(function(m){return m.id==='dreams';})||{id:'dreams',name:'Dream Weaver'};
@@ -7883,7 +8443,7 @@ function DreamPage(){
   dTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}},'Dream Weaver'));
   dTextCol.appendChild(h('p',{css:{fontSize:'12px',color:DREAM_COL+'90',fontFamily:CR}},'Log · Interpret · Discover patterns'));
   dNameRow.appendChild(dTextCol);
-  var dIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+DREAM_COL+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:DREAM_COL,cursor:'pointer',background:DREAM_COL+'08',flexShrink:'0'}});dIBtn.textContent='i';
+  var dIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+DREAM_COL+'cc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:DREAM_COL,cursor:'pointer',background:DREAM_COL+'1f',flexShrink:'0'}});dIBtn.textContent='i';
   dIBtn.addEventListener('click',function(){showModuleInfo(dMod);});
   dNameRow.appendChild(dIBtn);
   hi.appendChild(dNameRow);
@@ -7891,6 +8451,23 @@ function DreamPage(){
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.08),transparent)',border:'1px solid rgba(139,92,246,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(139,92,246,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(hdr);
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'24px'}},'Dream entries are for reflection only. If dreams cause distress, consider speaking with a professional.'));
+
+  // ── Tab bar ─────────────────────────────────
+  var _tabPill=h('div',{css:{display:'flex',background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'4px',margin:'0 0 16px'}});
+  var _tab1=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'1px solid '+DREAM_COL+'50',background:DREAM_COL+'20',color:DREAM_COL,fontFamily:CR,fontSize:'13px',fontWeight:'600',cursor:'pointer',transition:'all .2s'}},'New Session');
+  var _tab2=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'none',background:'transparent',color:'rgba(255,255,255,.4)',fontFamily:CR,fontSize:'13px',fontWeight:'400',cursor:'pointer',transition:'all .2s'}},'Previous Sessions');
+  _tabPill.appendChild(_tab1);_tabPill.appendChild(_tab2);
+  var _p1=h('div',{});
+  var _hist=h('div',{css:{display:'none'}});
+  function _showTab(n){
+    if(n===1){_p1.style.display='block';_hist.style.display='none';_tab1.style.background=DREAM_COL+'20';_tab1.style.border='1px solid '+DREAM_COL+'50';_tab1.style.color=DREAM_COL;_tab1.style.fontWeight='600';_tab2.style.background='transparent';_tab2.style.border='none';_tab2.style.color='rgba(255,255,255,.4)';_tab2.style.fontWeight='400';}
+    else{_p1.style.display='none';_hist.style.display='block';_buildHist();_tab2.style.background=DREAM_COL+'20';_tab2.style.border='1px solid '+DREAM_COL+'50';_tab2.style.color=DREAM_COL;_tab2.style.fontWeight='600';_tab1.style.background='transparent';_tab1.style.border='none';_tab1.style.color='rgba(255,255,255,.4)';_tab1.style.fontWeight='400';}
+  }
+  _tab1.addEventListener('click',function(){_showTab(1);});
+  _tab2.addEventListener('click',function(){_showTab(2);});
+  inn.appendChild(_tabPill);
+  inn.appendChild(_p1);
+  inn.appendChild(_hist);
 
   // ════════════════════════════════════════
   // SECTION 1 — LOG YOUR DREAM
@@ -7902,7 +8479,7 @@ function DreamPage(){
   s1Hdr.appendChild(s1num);
   s1Hdr.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'600',color:'#F0EEF8',marginBottom:'4px'}},'Log Your Dream'));
   s1Hdr.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)'}},'Voice or text — capture it before it fades'));
-  inn.appendChild(s1Hdr);
+  _p1.appendChild(s1Hdr);
 
   var logCard=h('div',{css:{background:'rgba(16,10,32,.98)',border:'1px solid '+DREAM_COL+'33',borderRadius:'16px',padding:'18px',marginBottom:'10px'}});
 
@@ -7969,13 +8546,10 @@ function DreamPage(){
   submitBtn.addEventListener('mouseenter',function(){submitBtn.style.transform='translateY(-1px)';submitBtn.style.boxShadow='0 6px 24px '+DREAM_COL+'50';});
   submitBtn.addEventListener('mouseleave',function(){submitBtn.style.transform='translateY(0)';submitBtn.style.boxShadow='0 4px 16px '+DREAM_COL+'30';});
   logCard.appendChild(submitBtn);
-  inn.appendChild(logCard);
+  _p1.appendChild(logCard);
 
-  // Dream history container
-  var histContainer=h('div',{css:{marginBottom:'32px'}});
-  inn.appendChild(histContainer);
-
-  function renderDreamHistory(){
+  // Dream history moved to 'Dream Journal' tab (_buildHist)
+  function renderDreamHistoryLegacy(){
     histContainer.innerHTML='';
     var entries=S.dreams.entries||[];
     if(!entries.length)return;
@@ -8035,7 +8609,7 @@ function DreamPage(){
       histContainer.appendChild(card);
     });
   }
-  renderDreamHistory();
+  // Dream history now in 'Dream Journal' tab
 
   // ── Submit handler
   submitBtn.addEventListener('click',async function(){
@@ -8058,7 +8632,7 @@ function DreamPage(){
     if(S.dreams.entries.length>=3){setTimeout(function(){enrichFromDreams();},800);}
     logSession('dreams','Dream logged: '+(dreamTa.value||'').substring(0,80),(interp&&interp.tags)||[],{mood:selMood,sleepQuality:selSleep});
     dreamTa.value='';selMood=3;selSleep=3;updateMoodBtns();updateSleepBtns();
-    renderDreamHistory();
+    if(_hist.style.display!=='none')_buildHist();
     var dFlash=h('div',{css:{borderRadius:'12px',padding:'14px 16px',marginBottom:'8px',animation:'av-f .4s ease'}});
     logCard.after(dFlash);
     if(interp){
@@ -8089,7 +8663,7 @@ function DreamPage(){
   // ════════════════════════════════════════
   // SECTION 2 — PERSONAL PATTERNS
   // ════════════════════════════════════════
-  inn.appendChild(h('div',{css:{height:'40px'}}));
+  _p1.appendChild(h('div',{css:{height:'40px'}}));
   var s2Hdr=h('div',{css:{marginBottom:'20px'}});
   var s2num=h('div',{css:{display:'flex',alignItems:'baseline',gap:'10px',marginBottom:'4px'}});
   s2num.appendChild(h('span',{css:{fontFamily:PF,fontSize:'32px',fontWeight:'700',color:DREAM_COL,lineHeight:'1',opacity:'.9'}},'02'));
@@ -8097,9 +8671,9 @@ function DreamPage(){
   s2Hdr.appendChild(s2num);
   s2Hdr.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'600',color:'#F0EEF8',marginBottom:'4px'}},'Your Personal Patterns'));
   s2Hdr.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)'}},'Recurring symbols, archetypes, and your emotional signature'));
-  inn.appendChild(s2Hdr);
+  _p1.appendChild(s2Hdr);
 
-  var patternsContainer=h('div',{});inn.appendChild(patternsContainer);
+  var patternsContainer=h('div',{});_p1.appendChild(patternsContainer);
 
   function renderPatterns(){
     patternsContainer.innerHTML='';
@@ -8212,7 +8786,7 @@ function DreamPage(){
   // ════════════════════════════════════════
   // SECTION 3 — GLOBAL COLLECTIVE PATTERNS
   // ════════════════════════════════════════
-  inn.appendChild(h('div',{css:{height:'40px'}}));
+  _p1.appendChild(h('div',{css:{height:'40px'}}));
   var s3Hdr=h('div',{css:{marginBottom:'20px'}});
   var s3num=h('div',{css:{display:'flex',alignItems:'baseline',gap:'10px',marginBottom:'4px'}});
   s3num.appendChild(h('span',{css:{fontFamily:PF,fontSize:'32px',fontWeight:'700',color:DREAM_COL,lineHeight:'1',opacity:'.9'}},'03'));
@@ -8220,7 +8794,7 @@ function DreamPage(){
   s3Hdr.appendChild(s3num);
   s3Hdr.appendChild(h('h3',{css:{fontFamily:PF,fontSize:'20px',fontWeight:'600',color:'#F0EEF8',marginBottom:'4px'}},'Global Collective Patterns'));
   s3Hdr.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)'}},'Universal dream themes shared across humanity — and how yours relates'));
-  inn.appendChild(s3Hdr);
+  _p1.appendChild(s3Hdr);
 
   // Moon phase
   var moon=getMoonPhase();
@@ -8235,7 +8809,7 @@ function DreamPage(){
   var moonMeaning=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.6)',lineHeight:'1.65'}});moonMeaning.textContent=moon.meaning;
   moonRight.appendChild(moonName);moonRight.appendChild(moonMeaning);
   moonCard.appendChild(moonLeft);moonCard.appendChild(moonRight);
-  inn.appendChild(moonCard);
+  _p1.appendChild(moonCard);
 
   // Seasonal archetypes
   var seasonal=getSeasonalArchetypes();
@@ -8251,7 +8825,7 @@ function DreamPage(){
     aText.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.45)',lineHeight:'1.55'}},arch.desc));
     ar.appendChild(aSym);ar.appendChild(aText);seasonCard.appendChild(ar);
   });
-  inn.appendChild(seasonCard);
+  _p1.appendChild(seasonCard);
 
   // How your dreams compare (only if patterns exist)
   if(S.dreams.patterns&&S.dreams.entries.length>=3){
@@ -8261,7 +8835,7 @@ function DreamPage(){
     var seasonArchs=seasonal.map(function(a){return a.name;}).join(', ');
     var sigTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.65)',lineHeight:'1.7'}});
     sigTxt.textContent='The collective is dreaming of '+seasonArchs+'. Your personal signature — '+userArchs+' — shows where your inner world diverges into something uniquely yours.';
-    compareCard.appendChild(sigTxt);inn.appendChild(compareCard);
+    compareCard.appendChild(sigTxt);_p1.appendChild(compareCard);
   }
 
   // Community note
@@ -8269,8 +8843,97 @@ function DreamPage(){
   comNote.appendChild(h('span',{css:{fontSize:'16px',flexShrink:'0'}},'🌍'));
   var comTxt=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.3)',lineHeight:'1.65'}});
   comTxt.textContent='As Aevora grows, this section will show real-time collective dream data — what symbols thousands of dreamers share on any given night. You will be part of it.';
-  comNote.appendChild(comTxt);inn.appendChild(comNote);
+  comNote.appendChild(comTxt);_p1.appendChild(comNote);
 
+  function _buildHist(){
+    while(_hist.firstChild)_hist.removeChild(_hist.firstChild);
+    var _entries=S.dreams&&S.dreams.entries||[];
+    if(!_entries.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'48px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No dreams recorded yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}},'Your dream journal will appear here after your first entry.'));
+      _hist.appendChild(_e);return;
+    }
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    _entries.forEach(function(e2){
+      var _d=new Date(e2.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(e2);
+      else if(_dd>=_y)_grps[1].s.push(e2);
+      else if(_now-_d<604800000)_grps[2].s.push(e2);
+      else _grps[3].s.push(e2);
+    });
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;_hist.appendChild(_gl);
+      g.s.forEach(function(entry){
+        var _expanded=false;
+        var _card=h('div',{css:{background:'rgba(139,92,246,.06)',border:'1px solid rgba(139,92,246,.18)',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+        var _diff=_now-new Date(entry.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:DREAM_COL,opacity:'.75'}});
+        _dt.textContent=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(entry.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        if(entry.mood){var _md2=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.3)'}});_md2.textContent='· '+entry.mood;_meta.appendChild(_md2);}
+        _meta.insertBefore(_dt,_meta.firstChild);_hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'13px',color:'rgba(255,255,255,.65)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+        var _twords=(entry.text||'').trim().split(/\s+/).slice(0,5).join(' ');
+        _ttl.textContent=_twords||'Dream Entry';_hl.appendChild(_ttl);
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});
+        _pv.textContent='“'+(entry.text||'').substring(0,80)+'”';_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid rgba(139,92,246,.12)'}});
+        var _bw=h('div',{css:{padding:'14px 16px',overflowY:'auto',maxHeight:'300px'}});
+        if(entry.mood||entry.sleepQuality){
+          var _tags=h('div',{css:{display:'flex',gap:'6px',flexWrap:'wrap',marginBottom:'10px'}});
+          if(entry.mood){var _t1=h('span',{css:{fontFamily:CR,fontSize:'11px',background:'rgba(139,92,246,.12)',color:'rgba(139,92,246,.8)',padding:'3px 9px',borderRadius:'20px'}});_t1.textContent=entry.mood;_tags.appendChild(_t1);}
+          if(entry.sleepQuality){var _t2=h('span',{css:{fontFamily:CR,fontSize:'11px',background:'rgba(255,255,255,.06)',color:'rgba(255,255,255,.4)',padding:'3px 9px',borderRadius:'20px'}});_t2.textContent='Sleep: '+entry.sleepQuality;_tags.appendChild(_t2);}
+          _bw.appendChild(_tags);
+        }
+        var _fullTxt=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.7)',lineHeight:'1.7',margin:'0'}});
+        _fullTxt.textContent=entry.text||'';_bw.appendChild(_fullTxt);
+        if(entry.interpretation&&entry.interpretation.themes){
+          var _th=h('div',{css:{marginTop:'12px',padding:'10px 12px',background:'rgba(139,92,246,.07)',borderRadius:'8px',border:'1px solid rgba(139,92,246,.15)'}});
+          _th.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(139,92,246,.6)',marginBottom:'6px'}},'Themes'));
+          var _tlist=h('div',{css:{display:'flex',gap:'5px',flexWrap:'wrap'}});
+          entry.interpretation.themes.forEach(function(tm){var _tc=h('span',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.55)'}});_tc.textContent=tm;_tlist.appendChild(_tc);});
+          _th.appendChild(_tlist);_bw.appendChild(_th);
+        }
+        _body2.appendChild(_bw);
+        var _ar=h('div',{css:{padding:'8px 16px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}});
+        var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+        _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+        _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+        _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+        _db.addEventListener('click',function(e){
+          e.stopPropagation();
+          var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+          var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+          _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},'Delete this dream?'));
+          _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},'This dream entry will be permanently removed.'));
+          var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+          var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+          _c1x.addEventListener('click',function(){_c1.remove();});
+          _c1ok.addEventListener('click',function(){
+            _c1.remove();
+            var _idx=S.dreams.entries.indexOf(entry);
+            if(_idx>-1){S.dreams.entries.splice(_idx,1);if(S.user){S.user.dreams=S.dreams;saveUser(S.user);}try{localStorage.setItem('aevora_dreams',JSON.stringify(S.dreams));}catch(ex){}_buildHist();}
+          });
+          _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+        });
+        _ar.appendChild(_db);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?'rgba(139,92,246,.4)':'rgba(139,92,246,.18)';});
+        _hist.appendChild(_card);
+      });
+    });
+  }
   return w;
 }
 
@@ -8280,9 +8943,9 @@ function DreamPage(){
 // ══════════════════════════════════════════════════════
 function TimeCapsulePage(){
   var TC_COL='#A8A29E';var TC_R='168,162,158';
-  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'100px'}});
+  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'80px'}});
   w.appendChild(homeStars());
-  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'100px'}});
+  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'80px'}});
   w.appendChild(scrl);
   var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
@@ -8292,7 +8955,7 @@ function TimeCapsulePage(){
 
   // ── Header
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1'}});
   var tcIco=mkModIcon('timecapsule');tcIco.style.marginBottom='0';tcIco.style.width='36px';tcIco.style.height='36px';tcIco.style.borderRadius='10px';tcIco.style.flexShrink='0';
   var tcMod=ALL_MODS.find(function(m){return m.id==='timecapsule';})||{id:'timecapsule',name:'Emotional Time Capsule'};
@@ -8302,7 +8965,7 @@ function TimeCapsulePage(){
   tcTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}},'Time Capsule'));
   tcTextCol.appendChild(h('p',{css:{fontSize:'12px',color:'#A8A29E90',fontFamily:CR}},'Seal · Unlock · Reflect'));
   tcNameRow.appendChild(tcTextCol);
-  var tcIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(168,162,158,.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:'#A8A29E',cursor:'pointer',background:'rgba(168,162,158,.08)',flexShrink:'0'}});tcIBtn.textContent='i';
+  var tcIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid rgba(168,162,158,.75)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:'#A8A29E',cursor:'pointer',background:'rgba(168,162,158,.12)',flexShrink:'0'}});tcIBtn.textContent='i';
   tcIBtn.addEventListener('click',function(){showModuleInfo(tcMod);});
   tcNameRow.appendChild(tcIBtn);
   hi.appendChild(tcNameRow);
@@ -8707,16 +9370,19 @@ function WisdomPage(){
   var WO_BG='rgba(34,211,238,.10)';
   var WO_BORDER='rgba(34,211,238,.28)';
 
-  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'80px'}});
+  var w=h('div',{css:{position:'relative',height:'100vh',overflow:'hidden',background:'transparent',display:'flex',flexDirection:'column'}});
   w.appendChild(homeStars());
-  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'80px'}});
+
+  var scrl=h('div',{css:{flex:'1',overflowY:'auto',paddingBottom:'80px'}});
   w.appendChild(scrl);
+
+
   var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
   // ── Header
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();go(S._returnTo||'home');}));
   var wIco=mkModIcon('wisdom');wIco.style.width='36px';wIco.style.height='36px';wIco.style.borderRadius='10px';wIco.style.marginBottom='0';wIco.style.flexShrink='0';
   var wTitleWrap=h('div',{css:{flex:'1',minWidth:'0'}});
   var wNameRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -8725,7 +9391,7 @@ function WisdomPage(){
   wTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'18px',fontWeight:'600',color:'#F0EEF8'}},'Wisdom Oracle'));
   wTextCol.appendChild(h('p',{css:{fontFamily:CR,fontSize:'11px',color:WO_COL+'90',letterSpacing:'.1em'}},'Daily wisdom \u00B7 Ask the Oracle'));
   wNameRow.appendChild(wTextCol);
-  var woIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+WO_COL+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:WO_COL,cursor:'pointer',background:WO_BG,flexShrink:'0'}});woIBtn.textContent='i';
+  var woIBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+WO_COL+'cc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:WO_COL,cursor:'pointer',background:WO_COL+'1f',flexShrink:'0'}});woIBtn.textContent='i';
   woIBtn.addEventListener('click',function(){var _m=ALL_MODS.find(function(m){return m.id==='wisdom';});if(_m)showModuleInfo(_m);});
   wNameRow.appendChild(woIBtn);
   wTitleWrap.appendChild(wNameRow);
@@ -8733,6 +9399,23 @@ function WisdomPage(){
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,'+WO_BG+',transparent)',border:'1px solid rgba(34,211,238,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(34,211,238,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(hdr);
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'24px'}},'Your daily wisdom is drawn from your Eternal Self Profile \u2014 your values, growth areas, and emotional state. Each day brings something new.'));
+
+  // ── Tab bar ─────────────────────────────────
+  var _tabPill=h('div',{css:{display:'flex',background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'4px',margin:'0 0 16px'}});
+  var _tab1=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'1px solid '+WO_COL+'50',background:WO_COL+'20',color:WO_COL,fontFamily:CR,fontSize:'13px',fontWeight:'600',cursor:'pointer',transition:'all .2s'}},'New Session');
+  var _tab2=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'none',background:'transparent',color:'rgba(255,255,255,.4)',fontFamily:CR,fontSize:'13px',fontWeight:'400',cursor:'pointer',transition:'all .2s'}},'Previous Sessions');
+  _tabPill.appendChild(_tab1);_tabPill.appendChild(_tab2);
+  var _p1=h('div',{});
+  var _hist=h('div',{css:{display:'none'}});
+  function _showTab(n){
+    if(n===1){_p1.style.display='block';_hist.style.display='none';_tab1.style.background=WO_COL+'20';_tab1.style.border='1px solid '+WO_COL+'50';_tab1.style.color=WO_COL;_tab1.style.fontWeight='600';_tab2.style.background='transparent';_tab2.style.border='none';_tab2.style.color='rgba(255,255,255,.4)';_tab2.style.fontWeight='400';}
+    else{_p1.style.display='none';_hist.style.display='block';_buildHist();_tab2.style.background=WO_COL+'20';_tab2.style.border='1px solid '+WO_COL+'50';_tab2.style.color=WO_COL;_tab2.style.fontWeight='600';_tab1.style.background='transparent';_tab1.style.border='none';_tab1.style.color='rgba(255,255,255,.4)';_tab1.style.fontWeight='400';}
+  }
+  _tab1.addEventListener('click',function(){_showTab(1);});
+  _tab2.addEventListener('click',function(){_showTab(2);});
+  inn.appendChild(_tabPill);
+  inn.appendChild(_p1);
+  inn.appendChild(_hist);
 
   // ── Section header helper
   function sHdr(num,title,sub){
@@ -8749,10 +9432,10 @@ function WisdomPage(){
   // ══════════════════════
   // SECTION 01 — Daily Wisdom
   // ══════════════════════
-  inn.appendChild(sHdr('01','Today\'s Wisdom','Refreshes each morning · Drawn from your Eternal Self Profile'));
+  _p1.appendChild(sHdr('01','Today\'s Wisdom','Refreshes each morning · Drawn from your Eternal Self Profile'));
 
   var cardArea=h('div',{css:{marginBottom:'28px'}});
-  inn.appendChild(cardArea);
+  _p1.appendChild(cardArea);
 
   function getTodayKey(){return 'aevora_wisdom_'+new Date().toISOString().slice(0,10);}
   function getSavedWisdom(){try{return JSON.parse(localStorage.getItem(getTodayKey())||'null');}catch{return null;}}
@@ -8839,8 +9522,8 @@ function WisdomPage(){
   // ══════════════════════
   // SECTION 02 — Ask the Oracle
   // ══════════════════════
-  inn.appendChild(sHdr('02','Ask the Oracle','Bring a question \u2014 the Oracle answers from your own wisdom'));
-  inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.45)',lineHeight:'1.7',marginBottom:'18px'}},'Unlike the daily card, this is on-demand and personal. Ask about a decision you\u2019re sitting with, a fear, a relationship, or your direction. The Oracle responds from your values, philosophy, therapy insights, and recent activity \u2014 not generic wisdom, but what\'s true for you.'));
+  _p1.appendChild(sHdr('02','Ask the Oracle','Bring a question \u2014 the Oracle answers from your own wisdom'));
+  _p1.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.45)',lineHeight:'1.7',marginBottom:'18px'}},'Unlike the daily card, this is on-demand and personal. Ask about a decision you\u2019re sitting with, a fear, a relationship, or your direction. The Oracle responds from your values, philosophy, therapy insights, and recent activity \u2014 not generic wisdom, but what\'s true for you.'));
 
   var askCard=h('div',{css:{background:'rgba(20,13,38,.7)',border:'1px solid '+WO_BORDER,borderRadius:'16px',padding:'18px',marginBottom:'28px'}});
   var askWrap=h('div',{css:{position:'relative',marginBottom:'12px'}});
@@ -8858,7 +9541,7 @@ function WisdomPage(){
   askCard.appendChild(askBtn);
   var askResult=h('div',{css:{marginTop:'14px'}});
   askCard.appendChild(askResult);
-  inn.appendChild(askCard);
+  _p1.appendChild(askCard);
 
   askBtn.addEventListener('click',async function(){
     if(!askTa.value.trim()){askTa.style.borderColor=WO_COL;setTimeout(function(){askTa.style.borderColor='';},1500);return;}
@@ -8902,7 +9585,7 @@ function WisdomPage(){
   // Previous Wisdoms (below oracle)
   // ══════════════════════
   var histArea=h('div',{});
-  inn.appendChild(histArea);
+  _p1.appendChild(histArea);
 
   function renderHistory(){
     var hist=getWisdomHistory().slice(1,8);
@@ -8919,6 +9602,42 @@ function WisdomPage(){
 
   setTimeout(renderHistory, 100);
 
+  function _buildHist(){
+    while(_hist.firstChild)_hist.removeChild(_hist.firstChild);
+    var _woH=getWisdomHistory();
+    if(!_woH.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'48px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No wisdom yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.2)',lineHeight:'1.6'}},'Past wisdom will appear here after your first consultation.'));
+      _hist.appendChild(_e);return;
+    }
+    _hist.appendChild(h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(34,211,238,.5)',margin:'0 0 12px 2px'}},'Wisdom Archive — '+_woH.length+' entries'));
+    _woH.forEach(function(item){
+      var _expanded=false;
+      var _card=h('div',{css:{background:'rgba(34,211,238,.05)',border:'1px solid rgba(34,211,238,.15)',borderRadius:'14px',padding:'0',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+      var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+      var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+      var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+      var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:WO_COL,opacity:'.75'}});_dt.textContent=item.date;
+      _meta.appendChild(_dt);
+      if(item.data.tradition){var _tr=h('span',{css:{fontFamily:CR,fontSize:'10px',background:'rgba(34,211,238,.1)',color:'rgba(34,211,238,.7)',padding:'2px 7px',borderRadius:'20px'}});_tr.textContent=item.data.tradition;_meta.appendChild(_tr);}
+      _hl.appendChild(_meta);
+      var _ttl=h('p',{css:{fontFamily:PF,fontSize:'13px',color:'rgba(255,255,255,.65)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});
+      _ttl.textContent=item.data.insight?(item.data.insight.substring(0,50)+(item.data.insight.length>50?'…':'')):'Wisdom';_hl.appendChild(_ttl);
+      var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});
+      _pv.textContent='“'+(item.data.reflection||item.data.insight||'').substring(0,80)+'”';_hl.appendChild(_pv);
+      _hrow.appendChild(_hl);
+      var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+      _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+      _hrow.appendChild(_chv);_card.appendChild(_hrow);
+      var _body2=h('div',{css:{display:'none',borderTop:'1px solid rgba(34,211,238,.1)',padding:'14px 16px'}});
+      if(item.data.insight){var _ins=h('p',{css:{fontFamily:PF,fontSize:'15px',color:'rgba(255,255,255,.8)',lineHeight:'1.7',fontStyle:'italic',marginBottom:'10px'}});_ins.textContent='“'+item.data.insight+'”';_body2.appendChild(_ins);}
+      if(item.data.reflection){var _ref=h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.5)',lineHeight:'1.65',margin:'0'}});_ref.textContent=item.data.reflection;_body2.appendChild(_ref);}
+      _card.appendChild(_body2);
+      _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?'rgba(34,211,238,.35)':'rgba(34,211,238,.15)';});
+      _hist.appendChild(_card);
+    });
+  }
   return w;
 }
 
@@ -8934,17 +9653,21 @@ function InnerChildPage(){
   if(!S.ic)S.ic={age:null,msgs:[],integrated:false,integration:null,history:[]};
   // Preserve existing session — only reset age/msgs if starting fresh via age selector
 
-  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',background:'transparent',paddingBottom:'60px'}});
+  var w=h('div',{css:{position:'relative',height:'100vh',overflow:'hidden',background:'transparent',display:'flex',flexDirection:'column'}});
   w.appendChild(homeStars());
-  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'80px'}});
+
+  var scrl=h('div',{css:{flex:'1',overflowY:'auto',paddingBottom:'80px'}});
   w.appendChild(scrl);
+
+
+
   var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
   // ── Header
   var icMod=ALL_MODS.find(function(m){return m.id==='innerchild';})||{id:'innerchild',name:'Inner Child Healer'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1',minWidth:'0'}});
   var icIco=mkModIcon('innerchild');icIco.style.marginBottom='0';icIco.style.width='36px';icIco.style.height='36px';icIco.style.borderRadius='10px';icIco.style.flexShrink='0';
   var nameRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -8953,7 +9676,7 @@ function InnerChildPage(){
   icTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'700',color:'#F0EEF8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},'Inner Child Healer'));
   icTextCol.appendChild(h('p',{css:{fontSize:'12px',color:IC_COL+'90',fontFamily:CR}},'Choose \u00B7 Heal \u00B7 Integrate'));
   nameRow.appendChild(icTextCol);
-  var iBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+IC_COL+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:IC_COL,cursor:'pointer',background:IC_COL+'08',flexShrink:'0'}});iBtn.textContent='i';
+  var iBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+IC_COL+'cc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:IC_COL,cursor:'pointer',background:IC_COL+'1f',flexShrink:'0'}});iBtn.textContent='i';
   iBtn.addEventListener('click',function(){showModuleInfo(icMod);});
   nameRow.appendChild(iBtn);
   hi.appendChild(nameRow);
@@ -8961,6 +9684,23 @@ function InnerChildPage(){
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(251,146,60,.08),transparent)',border:'1px solid rgba(251,146,60,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(251,146,60,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(hdr);
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'28px'}},'This module uses Internal Family Systems (IFS)-based reflection. If emotions feel overwhelming, take a break or speak with a professional.'));
+
+  // ── Tab bar ─────────────────────────────────
+  var _tabPill=h('div',{css:{display:'flex',background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'4px',margin:'0 0 16px'}});
+  var _tab1=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'1px solid '+IC_COL+'50',background:IC_COL+'20',color:IC_COL,fontFamily:CR,fontSize:'13px',fontWeight:'600',cursor:'pointer',transition:'all .2s'}},'New Session');
+  var _tab2=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'none',background:'transparent',color:'rgba(255,255,255,.4)',fontFamily:CR,fontSize:'13px',fontWeight:'400',cursor:'pointer',transition:'all .2s'}},'Previous Sessions');
+  _tabPill.appendChild(_tab1);_tabPill.appendChild(_tab2);
+  var _p1=h('div',{});
+  var _hist=h('div',{css:{display:'none'}});
+  function _showTab(n){
+    if(n===1){_p1.style.display='block';_hist.style.display='none';_tab1.style.background=IC_COL+'20';_tab1.style.border='1px solid '+IC_COL+'50';_tab1.style.color=IC_COL;_tab1.style.fontWeight='600';_tab2.style.background='transparent';_tab2.style.border='none';_tab2.style.color='rgba(255,255,255,.4)';_tab2.style.fontWeight='400';}
+    else{_p1.style.display='none';_hist.style.display='block';_buildHist();_tab2.style.background=IC_COL+'20';_tab2.style.border='1px solid '+IC_COL+'50';_tab2.style.color=IC_COL;_tab2.style.fontWeight='600';_tab1.style.background='transparent';_tab1.style.border='none';_tab1.style.color='rgba(255,255,255,.4)';_tab1.style.fontWeight='400';}
+  }
+  _tab1.addEventListener('click',function(){_showTab(1);});
+  _tab2.addEventListener('click',function(){_showTab(2);});
+  inn.appendChild(_tabPill);
+  inn.appendChild(_p1);
+  inn.appendChild(_hist);
 
   // ── helpers
   var AGES=[
@@ -8992,7 +9732,7 @@ function InnerChildPage(){
   // ════════════════════════════════════════════
   // SECTION 01 — Choose Your Age
   // ════════════════════════════════════════════
-  inn.appendChild(sectionHdr('01','Choose a Time to Visit','Which age calls to you today?'));
+  _p1.appendChild(sectionHdr('01','Choose a Time to Visit','Which age calls to you today?'));
 
   var selectedAge=null;
   var ageCards=[];
@@ -9003,7 +9743,7 @@ function InnerChildPage(){
   descTxt.textContent='Within you lives every age you have ever been. In Internal Family Systems (IFS), these younger parts carry unmet needs and unprocessed feelings. Select an age to visit one — not to relive pain, but to offer it your presence.';
   var descEra=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.12em',textTransform:'uppercase',color:IC_COL,marginBottom:'6px',display:'none'}});
   descPanel.appendChild(descEra);descPanel.appendChild(descTxt);
-  inn.appendChild(descPanel);
+  _p1.appendChild(descPanel);
 
   var ageRow=h('div',{css:{display:'flex',gap:'8px',marginBottom:'10px'}});
 
@@ -9071,13 +9811,13 @@ function InnerChildPage(){
   customHint.textContent='age 3\u201340';
 
   ageRow.appendChild(customCard);
-  inn.appendChild(ageRow);
-  inn.appendChild(customHint);
+  _p1.appendChild(ageRow);
+  _p1.appendChild(customHint);
 
   // ════════════════════════════════════════════
   // SECTION 02 — Healing Conversation
   // ════════════════════════════════════════════
-  inn.appendChild(sectionHdr('02','The Healing Conversation','Your younger self is here'));
+  _p1.appendChild(sectionHdr('02','The Healing Conversation','Your younger self is here'));
   var sec02Wrap=h('div',{css:{position:'relative',borderRadius:'16px',marginBottom:'28px'}});
   var sec02Inner=h('div',{});
 
@@ -9128,15 +9868,15 @@ function InnerChildPage(){
       if(conv02Lock&&conv02Lock.parentNode)conv02Lock.remove();
       icInput.disabled=false;icSendBtn.disabled=false;icSendBtn.style.opacity='1';
       S.ic.msgs.forEach(function(m){icMsg(m.role,m.content);});
-      setTimeout(function(){if(icMsgArea)icMsgArea.scrollTop=icMsgArea.scrollHeight;},100);
+      setTimeout(function(){if(msgWrap)msgWrap.scrollTop=msgWrap.scrollHeight;},100);
     },200);
   }
-  inn.appendChild(sec02Wrap);
+  _p1.appendChild(sec02Wrap);
 
   // ════════════════════════════════════════════
   // SECTION 03 — Integration
   // ════════════════════════════════════════════
-  inn.appendChild(sectionHdr('03','Integration','What emerged from within'));
+  _p1.appendChild(sectionHdr('03','Integration','What emerged from within'));
   var sec03Wrap=h('div',{css:{position:'relative',borderRadius:'16px',marginBottom:'28px'}});
   var intResult=h('div',{css:{minHeight:'80px'}});
   var intBtn=h('button',{cls:'av-btn',css:{width:'100%',padding:'13px',borderColor:'rgba(251,146,60,.5)',color:IC_COL,background:IC_BG,fontSize:'14px',marginBottom:'16px',opacity:'.4'}});
@@ -9147,7 +9887,7 @@ function InnerChildPage(){
   sec03Wrap.appendChild(intResult);
   var int03Lock=lockOverlay('Have at least 5 exchanges with your younger self to unlock integration');
   sec03Wrap.appendChild(int03Lock);
-  inn.appendChild(sec03Wrap);
+  _p1.appendChild(sec03Wrap);
 
   // ── Shared chat helpers
   var icBusy=false,icTk=null;
@@ -9341,6 +10081,123 @@ function InnerChildPage(){
     setTimeout(function(){sec03Wrap.scrollIntoView({behavior:'smooth',block:'start'});},100);
   }
 
+
+  function _saveSession(){
+    var _uMsgs=S.ic.msgs.filter(function(m){return m.role==='user';});
+    if(!_uMsgs.length)return;
+    if(!S.ic.sessions)S.ic.sessions=[];
+    var _comb=_uMsgs.slice(0,3).map(function(m){return m.content||m.t||'';}).join(' ');
+    var _stop=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw=_comb.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_stop.test(w);});
+    var _tit=_kw.slice(0,3).join(' ')||_uMsgs[0].content||_uMsgs[0].t||'Session';
+    _tit=_tit.charAt(0).toUpperCase()+_tit.slice(1);
+    S.ic.sessions.unshift({ts:Date.now(),msgs:S.ic.msgs.slice(),title:_tit,preview:(_uMsgs[0].content||_uMsgs[0].t||'').substring(0,100)});
+    if(S.ic.sessions.length>15)S.ic.sessions.length=15;
+    if(S.user){S.user.ic=S.ic;saveUser(S.user);}try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(ex){}
+  }
+
+  function _buildHist(){
+    while(_hist.firstChild)_hist.removeChild(_hist.firstChild);
+    var _ss=S.ic.sessions||[];
+    if(!_ss.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'48px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.18)',lineHeight:'1.6'}},'Your sessions will appear here once you complete your first conversation.'));
+      _hist.appendChild(_e);return;
+    }
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    _ss.forEach(function(sess){
+      var _d=new Date(sess.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(sess);
+      else if(_dd>=_y)_grps[1].s.push(sess);
+      else if(_now-_d<604800000)_grps[2].s.push(sess);
+      else _grps[3].s.push(sess);
+    });
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;_hist.appendChild(_gl);
+      g.s.forEach(function(sess){
+        var _expanded=false;
+        var _card=h('div',{css:{background:IC_COL+'08',border:'1px solid '+IC_COL+'18',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+        var _diff=_now-new Date(sess.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dtTxt=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:IC_COL,opacity:'.75'}});_dt.textContent=_dtTxt;
+        var _cnt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)'}});_cnt.textContent='· '+(sess.msgs?sess.msgs.length:0)+' messages';
+        _meta.appendChild(_dt);_meta.appendChild(_cnt);_hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'13px',color:'rgba(255,255,255,.65)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});_ttl.textContent=sess.title||'Session';_hl.appendChild(_ttl);
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});_pv.textContent='“'+(sess.preview||'')+'”';_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid '+IC_COL+'12'}});
+        if(sess.msgs&&sess.msgs.length){
+          var _bw=h('div',{css:{padding:'14px 16px 10px',maxHeight:'320px',overflowY:'auto'}});
+          sess.msgs.forEach(function(m){
+            var _isU=(m.role==='user'||m.r==='u');
+            var _txt=m.content||m.t||'';
+            var _br=h('div',{css:{display:'flex',flexDirection:_isU?'row-reverse':'row',marginBottom:'10px',gap:'8px',alignItems:'flex-start'}});
+            if(!_isU){var _av=h('div',{css:{width:'24px',height:'24px',borderRadius:'50%',background:IC_COL+'15',border:'1px solid '+IC_COL+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'10px',color:IC_COL}});_av.textContent='◎';_br.appendChild(_av);}
+            var _bb=h('div',{css:{maxWidth:'78%',padding:'9px 13px',borderRadius:_isU?'12px 12px 2px 12px':'12px 12px 12px 2px',background:_isU?IC_COL+'12':'rgba(255,255,255,.04)',border:'1px solid '+(_isU?IC_COL+'30':'rgba(255,255,255,.07)'),fontFamily:CR,fontSize:'13px',lineHeight:'1.65',color:'rgba(255,255,255,.7)'}});
+            _bb.textContent=_txt;_br.appendChild(_bb);_bw.appendChild(_br);
+          });_body2.appendChild(_bw);
+        }
+        var _ar=h('div',{css:{padding:'10px 16px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}});
+        var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+        _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+        _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+        _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+        _db.addEventListener('click',function(e){
+          e.stopPropagation();
+          var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+          var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+          _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},'Delete this session?'));
+          _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},'This will be permanently removed from your history.'));
+          var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+          var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+          _c1x.addEventListener('click',function(){_c1.remove();});
+          _c1ok.addEventListener('click',function(){
+            _c1.remove();
+            var _c2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+            var _c2b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+            _c2b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}},'Are you sure?'));
+            _c2b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}},'This cannot be undone.'));
+            var _c2r=h('div',{css:{display:'flex',gap:'10px'}});
+            var _c2x=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});_c2x.textContent='Cancel';
+            var _c2ok=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});_c2ok.textContent='Permanently Delete';
+            _c2x.addEventListener('click',function(){_c2.remove();});
+            _c2ok.addEventListener('click',function(){
+              _c2.remove();
+              var _arr=S.ic.sessions||[];var _i=_arr.indexOf(sess);
+              if(_i>-1){_arr.splice(_i,1);if(S.user){S.user.ic=S.ic;saveUser(S.user);}try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(ex){}_buildHist();}
+            });
+            _c2r.appendChild(_c2x);_c2r.appendChild(_c2ok);_c2b.appendChild(_c2r);_c2.appendChild(_c2b);_c2.appendChild(h('div',{}));document.getElementById('av').appendChild(_c2);
+          });
+          _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+        });
+        _ar.appendChild(_db);
+        var _rb=h('button',{css:{background:'linear-gradient(135deg,'+IC_COL+','+IC_COL+'cc)',border:'none',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'500',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _rb.textContent='Resume →';
+        _rb.addEventListener('click',function(e){
+          e.stopPropagation();
+          S.ic.msgs=sess.msgs.slice();
+          if(S.user){S.user.ic=S.ic;saveUser(S.user);}
+          try{localStorage.setItem('aevora_ic',JSON.stringify(S.ic));}catch(ex){}
+          _showTab(1);
+        });
+        _ar.appendChild(_rb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?IC_COL+'40':IC_COL+'18';});
+        _hist.appendChild(_card);
+      });
+    });
+  }
   return w;
 }
 
@@ -9356,17 +10213,21 @@ function RelationshipPage(){
   S.ra.domain=null;S.ra.challenge='';S.ra.msgs=[];S.ra.roleplay={active:false,archetype:null,msgs:[]};
   if(S.user){S.user.ra=S.ra;saveUser(S.user);}
 
-  var w=h('div',{css:{position:'relative',minHeight:'100vh',overflow:'hidden',paddingBottom:'60px'}});
+  var w=h('div',{css:{position:'relative',height:'100vh',overflow:'hidden',display:'flex',flexDirection:'column'}});
   w.appendChild(homeStars());
-  var scrl=h('div',{css:{overflowY:'auto',height:'100vh',paddingBottom:'80px'}});
+
+  var scrl=h('div',{css:{flex:'1',overflowY:'auto',paddingBottom:'80px'}});
   w.appendChild(scrl);
+
+
+
   var inn=h('div',{css:{position:'relative',zIndex:'1',padding:'20px'}});
   scrl.appendChild(inn);
 
   // ── Header
   var raMod=ALL_MODS.find(function(m){return m.id==='relationship';})||{id:'relationship',name:'Relationship Architect'};
   var hdr=h('div',{css:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'6px'}});
-  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){go(S._returnTo||'home');}));
+  hdr.appendChild(mkBackBtn(S._returnTo==='modules'?'Modules':'Home',function(){window.speechSynthesis.cancel();_saveSession();go(S._returnTo||'home');}));
   var hi=h('div',{css:{flex:'1',minWidth:'0'}});
   var raIco=mkModIcon('relationship');raIco.style.marginBottom='0';raIco.style.width='36px';raIco.style.height='36px';raIco.style.borderRadius='10px';raIco.style.flexShrink='0';
   var nameRow=h('div',{css:{display:'flex',alignItems:'center',gap:'8px'}});
@@ -9375,7 +10236,7 @@ function RelationshipPage(){
   raTextCol.appendChild(h('h2',{css:{fontFamily:PF,fontSize:'16px',fontWeight:'700',color:'#F0EEF8',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},'Relationship Architect'));
   raTextCol.appendChild(h('p',{css:{fontSize:'12px',color:RA_COL+'90',fontFamily:CR,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},'Domain \u00B7 Coaching \u00B7 Practice'));
   nameRow.appendChild(raTextCol);
-  var iBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+RA_COL+'40',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:RA_COL,cursor:'pointer',background:RA_COL+'08',flexShrink:'0'}});iBtn.textContent='i';
+  var iBtn=h('div',{css:{width:'20px',height:'20px',borderRadius:'50%',border:'1px solid '+RA_COL+'cc',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px',color:RA_COL,cursor:'pointer',background:RA_COL+'1f',flexShrink:'0'}});iBtn.textContent='i';
   iBtn.addEventListener('click',function(){showModuleInfo(raMod);});
   nameRow.appendChild(iBtn);
   hi.appendChild(nameRow);
@@ -9383,6 +10244,23 @@ function RelationshipPage(){
   hdr.appendChild(h('div',{css:{width:'40px',height:'40px',borderRadius:'50%',background:'radial-gradient(circle,rgba(249,168,212,.08),transparent)',border:'1px solid rgba(249,168,212,.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',boxShadow:'0 0 12px rgba(249,168,212,.08)'}},h('img',{src:LOGO,css:{width:'28px',height:'28px',objectFit:'contain'}})));
   inn.appendChild(hdr);
   inn.appendChild(h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.28)',marginBottom:'28px'}},'Your AI coach uses Attachment Theory and Non-Violent Communication (NVC) to help you navigate real situations across romantic, family, professional, and friendship relationships \u2014 through reflection, frameworks, and conversation practice.'));
+
+  // ── Tab bar ─────────────────────────────────
+  var _tabPill=h('div',{css:{display:'flex',background:'rgba(255,255,255,.04)',borderRadius:'12px',padding:'4px',margin:'0 0 16px'}});
+  var _tab1=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'1px solid '+RA_COL+'50',background:RA_COL+'20',color:RA_COL,fontFamily:CR,fontSize:'13px',fontWeight:'600',cursor:'pointer',transition:'all .2s'}},'New Session');
+  var _tab2=h('button',{css:{flex:'1',padding:'9px 8px',borderRadius:'9px',border:'none',background:'transparent',color:'rgba(255,255,255,.4)',fontFamily:CR,fontSize:'13px',fontWeight:'400',cursor:'pointer',transition:'all .2s'}},'Previous Sessions');
+  _tabPill.appendChild(_tab1);_tabPill.appendChild(_tab2);
+  var _p1=h('div',{});
+  var _hist=h('div',{css:{display:'none'}});
+  function _showTab(n){
+    if(n===1){_p1.style.display='block';_hist.style.display='none';_tab1.style.background=RA_COL+'20';_tab1.style.border='1px solid '+RA_COL+'50';_tab1.style.color=RA_COL;_tab1.style.fontWeight='600';_tab2.style.background='transparent';_tab2.style.border='none';_tab2.style.color='rgba(255,255,255,.4)';_tab2.style.fontWeight='400';}
+    else{_p1.style.display='none';_hist.style.display='block';_buildHist();_tab2.style.background=RA_COL+'20';_tab2.style.border='1px solid '+RA_COL+'50';_tab2.style.color=RA_COL;_tab2.style.fontWeight='600';_tab1.style.background='transparent';_tab1.style.border='none';_tab1.style.color='rgba(255,255,255,.4)';_tab1.style.fontWeight='400';}
+  }
+  _tab1.addEventListener('click',function(){_showTab(1);});
+  _tab2.addEventListener('click',function(){_showTab(2);});
+  inn.appendChild(_tabPill);
+  inn.appendChild(_p1);
+  inn.appendChild(_hist);
 
   // ── Section header helper
   function sectionHdr(num,title,sub,desc){
@@ -9407,7 +10285,7 @@ function RelationshipPage(){
   // ══════════════════════════════════════════
   // SECTION 01 — Domain
   // ══════════════════════════════════════════
-  inn.appendChild(sectionHdr('01','Your Domain','Choose the relationship area you want to work on today','Each domain draws on different attachment patterns and communication dynamics. Select the one that feels most alive for you right now.'));
+  _p1.appendChild(sectionHdr('01','Your Domain','Choose the relationship area you want to work on today','Each domain draws on different attachment patterns and communication dynamics. Select the one that feels most alive for you right now.'));
 
   var DOMAINS=[
     {id:'romantic',    svg:'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>', label:'Romantic & Dating', desc:'Partnerships, dating, attachment patterns, vulnerability, trust, and what you seek in love.'},
@@ -9452,20 +10330,20 @@ function RelationshipPage(){
     domainCards.push(card);
   });
   domainWrap.appendChild(domRow1);domainWrap.appendChild(domRow2);
-  inn.appendChild(domainWrap);
-  inn.appendChild(descPanel);
+  _p1.appendChild(domainWrap);
+  _p1.appendChild(descPanel);
 
   // ══════════════════════════════════════════
   // SECTION 02 — Situation
   // ══════════════════════════════════════════
-  inn.appendChild(sectionHdr('02','Your Situation','Describe what\u2019s happening \u2014 the AI coach will tailor everything to your reality','Be as specific or as broad as you like. The more context you share, the more precise the coaching.'));
+  _p1.appendChild(sectionHdr('02','Your Situation','Describe what\u2019s happening \u2014 the AI coach will tailor everything to your reality','Be as specific or as broad as you like. The more context you share, the more precise the coaching.'));
 
   var sec02Wrap=h('div',{css:{position:'relative',borderRadius:'16px',marginBottom:'28px'}});
   var sec02Inner=h('div',{});
 
   // Focus chips
   var CHIPS=['Setting a boundary','Navigating conflict','Deepening connection','Understanding my patterns','Difficult conversation','Feeling disconnected'];
-  var chipRow=h('div',{css:{display:'flex',flexWrap:'wrap',gap:'7px',marginBottom:'14px'}});
+  var chipRow=h('div',{css:{display:'flex',flexWrap:'wrap',marginBottom:'14px'}});
   CHIPS.forEach(function(c2){
     var chip=h('button',{css:{background:'transparent',border:'1px solid '+RA_BORDER,borderRadius:'20px',padding:'5px 13px',fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.5)',cursor:'pointer',transition:'all .2s'}});
     chip.textContent=c2;
@@ -9502,12 +10380,12 @@ function RelationshipPage(){
   sec02Wrap.appendChild(sec02Inner);
   var lock02=lockOverlay('Select a domain above to describe your situation');
   sec02Wrap.appendChild(lock02);
-  inn.appendChild(sec02Wrap);
+  _p1.appendChild(sec02Wrap);
 
   // ══════════════════════════════════════════
   // SECTION 03 — Coaching & Role-Play
   // ══════════════════════════════════════════
-  inn.appendChild(sectionHdr('03','Coaching & Role-Play Practice',
+  _p1.appendChild(sectionHdr('03','Coaching & Role-Play Practice',
     'Your AI coach uses Attachment Theory and Non-Violent Communication',
     'When you\u2019re ready, the coach can step into a role \u2014 playing the person you\u2019re navigating \u2014 so you can practice the real conversation before you have it. Look for the \uD83C\uDFAD button.'));
 
@@ -9591,7 +10469,7 @@ function RelationshipPage(){
   sec03Wrap.appendChild(sec03Inner);
   var lock03=lockOverlay('Complete the situation above to begin your coaching session');
   sec03Wrap.appendChild(lock03);
-  inn.appendChild(sec03Wrap);
+  _p1.appendChild(sec03Wrap);
 
   // ══════════════════════════════════════════
   // Chat engine
@@ -9794,6 +10672,123 @@ function RelationshipPage(){
     raInput.disabled=false;raSendBtn.disabled=false;raSendBtn.style.opacity='1';
   }
 
+
+  function _saveSession(){
+    var _uMsgs=S.ra.msgs.filter(function(m){return m.role==='user';});
+    if(!_uMsgs.length)return;
+    if(!S.ra.sessions)S.ra.sessions=[];
+    var _comb=_uMsgs.slice(0,3).map(function(m){return m.content||m.t||'';}).join(' ');
+    var _stop=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kw=_comb.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_stop.test(w);});
+    var _tit=_kw.slice(0,3).join(' ')||_uMsgs[0].content||_uMsgs[0].t||'Session';
+    _tit=_tit.charAt(0).toUpperCase()+_tit.slice(1);
+    S.ra.sessions.unshift({ts:Date.now(),msgs:S.ra.msgs.slice(),title:_tit,preview:(_uMsgs[0].content||_uMsgs[0].t||'').substring(0,100)});
+    if(S.ra.sessions.length>15)S.ra.sessions.length=15;
+    if(S.user){S.user.ra=S.ra;saveUser(S.user);}try{localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(ex){}
+  }
+
+  function _buildHist(){
+    while(_hist.firstChild)_hist.removeChild(_hist.firstChild);
+    var _ss=S.ra.sessions||[];
+    if(!_ss.length){
+      var _e=h('div',{css:{textAlign:'center',padding:'48px 20px'}});
+      _e.appendChild(h('p',{css:{fontFamily:PF,fontSize:'18px',color:'rgba(255,255,255,.3)',marginBottom:'8px'}},'No previous sessions yet'));
+      _e.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.18)',lineHeight:'1.6'}},'Your sessions will appear here once you complete your first conversation.'));
+      _hist.appendChild(_e);return;
+    }
+    var _now=new Date();
+    var _grps=[{l:'Today',s:[]},{l:'Yesterday',s:[]},{l:'This week',s:[]},{l:'Earlier',s:[]}];
+    _ss.forEach(function(sess){
+      var _d=new Date(sess.ts),_t=new Date(_now);_t.setHours(0,0,0,0);
+      var _y=new Date(_t);_y.setDate(_t.getDate()-1);
+      var _dd=new Date(_d);_dd.setHours(0,0,0,0);
+      if(_dd>=_t)_grps[0].s.push(sess);
+      else if(_dd>=_y)_grps[1].s.push(sess);
+      else if(_now-_d<604800000)_grps[2].s.push(sess);
+      else _grps[3].s.push(sess);
+    });
+    _grps.forEach(function(g){
+      if(!g.s.length)return;
+      var _gl=h('p',{css:{fontFamily:CR,fontSize:'10px',letterSpacing:'.13em',textTransform:'uppercase',color:'rgba(255,255,255,.22)',margin:'14px 0 8px 2px'}});_gl.textContent=g.l;_hist.appendChild(_gl);
+      g.s.forEach(function(sess){
+        var _expanded=false;
+        var _card=h('div',{css:{background:RA_COL+'08',border:'1px solid '+RA_COL+'18',borderRadius:'14px',marginBottom:'10px',overflow:'hidden',transition:'all .2s'}});
+        var _hrow=h('div',{css:{padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'10px'}});
+        var _hl=h('div',{css:{flex:'1',minWidth:'0'}});
+        var _meta=h('div',{css:{display:'flex',gap:'8px',marginBottom:'5px',alignItems:'center'}});
+        var _diff=_now-new Date(sess.ts),_mins=Math.floor(_diff/60000),_hrs=Math.floor(_diff/3600000);
+        var _dtTxt=_mins<1?'just now':_mins<60?_mins+' min ago':_hrs<24?_hrs+' hr ago':new Date(sess.ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        var _dt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:RA_COL,opacity:'.75'}});_dt.textContent=_dtTxt;
+        var _cnt=h('span',{css:{fontFamily:CR,fontSize:'11px',color:'rgba(255,255,255,.25)'}});_cnt.textContent='· '+(sess.msgs?sess.msgs.length:0)+' messages';
+        _meta.appendChild(_dt);_meta.appendChild(_cnt);_hl.appendChild(_meta);
+        var _ttl=h('p',{css:{fontFamily:PF,fontSize:'13px',color:'rgba(255,255,255,.65)',fontWeight:'500',margin:'0 0 3px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}});_ttl.textContent=sess.title||'Session';_hl.appendChild(_ttl);
+        var _pv=h('p',{css:{fontFamily:CR,fontSize:'12px',color:'rgba(255,255,255,.35)',fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',margin:'0'}});_pv.textContent='“'+(sess.preview||'')+'”';_hl.appendChild(_pv);
+        _hrow.appendChild(_hl);
+        var _chv=h('div',{css:{color:'rgba(255,255,255,.2)',transition:'transform .25s',flexShrink:'0',paddingTop:'2px'}});
+        _chv.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        _hrow.appendChild(_chv);_card.appendChild(_hrow);
+        var _body2=h('div',{css:{display:'none',borderTop:'1px solid '+RA_COL+'12'}});
+        if(sess.msgs&&sess.msgs.length){
+          var _bw=h('div',{css:{padding:'14px 16px 10px',maxHeight:'320px',overflowY:'auto'}});
+          sess.msgs.forEach(function(m){
+            var _isU=(m.role==='user'||m.r==='u');
+            var _txt=m.content||m.t||'';
+            var _br=h('div',{css:{display:'flex',flexDirection:_isU?'row-reverse':'row',marginBottom:'10px',gap:'8px',alignItems:'flex-start'}});
+            if(!_isU){var _av=h('div',{css:{width:'24px',height:'24px',borderRadius:'50%',background:RA_COL+'15',border:'1px solid '+RA_COL+'30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0',fontSize:'10px',color:RA_COL}});_av.textContent='◎';_br.appendChild(_av);}
+            var _bb=h('div',{css:{maxWidth:'78%',padding:'9px 13px',borderRadius:_isU?'12px 12px 2px 12px':'12px 12px 12px 2px',background:_isU?RA_COL+'12':'rgba(255,255,255,.04)',border:'1px solid '+(_isU?RA_COL+'30':'rgba(255,255,255,.07)'),fontFamily:CR,fontSize:'13px',lineHeight:'1.65',color:'rgba(255,255,255,.7)'}});
+            _bb.textContent=_txt;_br.appendChild(_bb);_bw.appendChild(_br);
+          });_body2.appendChild(_bw);
+        }
+        var _ar=h('div',{css:{padding:'10px 16px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}});
+        var _db=h('button',{css:{background:'transparent',border:'1px solid rgba(255,80,80,.2)',color:'rgba(255,80,80,.45)',fontFamily:CR,fontSize:'11px',cursor:'pointer',padding:'5px 10px',borderRadius:'6px',transition:'all .2s',display:'flex',alignItems:'center',gap:'5px'}});
+        _db.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete';
+        _db.addEventListener('mouseenter',function(){_db.style.color='rgba(255,80,80,.85)';_db.style.borderColor='rgba(255,80,80,.5)';_db.style.background='rgba(255,80,80,.07)';});
+        _db.addEventListener('mouseleave',function(){_db.style.color='rgba(255,80,80,.45)';_db.style.borderColor='rgba(255,80,80,.2)';_db.style.background='transparent';});
+        _db.addEventListener('click',function(e){
+          e.stopPropagation();
+          var _c1=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.72)',zIndex:'9999',display:'flex',alignItems:'flex-end',justifyContent:'center'}});
+          var _c1b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,255,255,.1)',borderRadius:'20px 20px 0 0',padding:'24px 24px 36px',width:'100%',maxWidth:'480px'}});
+          _c1b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'17px',color:'rgba(255,255,255,.85)',marginBottom:'8px',textAlign:'center'}},'Delete this session?'));
+          _c1b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',textAlign:'center',marginBottom:'22px',lineHeight:'1.5'}},'This will be permanently removed from your history.'));
+          var _c1r=h('div',{css:{display:'flex',gap:'10px'}});
+          var _c1x=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'14px',cursor:'pointer'}});_c1x.textContent='Cancel';
+          var _c1ok=h('button',{css:{flex:'1',padding:'13px',borderRadius:'12px',background:'rgba(255,60,60,.12)',border:'1px solid rgba(255,60,60,.3)',color:'rgba(255,100,100,.9)',fontFamily:CR,fontSize:'14px',cursor:'pointer',fontWeight:'500'}});_c1ok.textContent='Delete';
+          _c1x.addEventListener('click',function(){_c1.remove();});
+          _c1ok.addEventListener('click',function(){
+            _c1.remove();
+            var _c2=h('div',{css:{position:'fixed',top:'0',left:'0',right:'0',bottom:'0',background:'rgba(0,0,0,.75)',zIndex:'9999',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}});
+            var _c2b=h('div',{css:{background:'#0F0920',border:'1px solid rgba(255,60,60,.25)',borderRadius:'16px',padding:'24px',width:'100%',maxWidth:'340px'}});
+            _c2b.appendChild(h('p',{css:{fontFamily:PF,fontSize:'16px',color:'rgba(255,255,255,.85)',marginBottom:'8px'}},'Are you sure?'));
+            _c2b.appendChild(h('p',{css:{fontFamily:CR,fontSize:'13px',color:'rgba(255,255,255,.35)',marginBottom:'20px',lineHeight:'1.5'}},'This cannot be undone.'));
+            var _c2r=h('div',{css:{display:'flex',gap:'10px'}});
+            var _c2x=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.12)',color:'rgba(255,255,255,.6)',fontFamily:CR,fontSize:'13px',cursor:'pointer'}});_c2x.textContent='Cancel';
+            var _c2ok=h('button',{css:{flex:'1',padding:'11px',borderRadius:'10px',background:'rgba(220,38,38,.85)',border:'none',color:'#fff',fontFamily:CR,fontSize:'13px',cursor:'pointer',fontWeight:'600'}});_c2ok.textContent='Permanently Delete';
+            _c2x.addEventListener('click',function(){_c2.remove();});
+            _c2ok.addEventListener('click',function(){
+              _c2.remove();
+              var _arr=S.ra.sessions||[];var _i=_arr.indexOf(sess);
+              if(_i>-1){_arr.splice(_i,1);if(S.user){S.user.ra=S.ra;saveUser(S.user);}try{localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(ex){}_buildHist();}
+            });
+            _c2r.appendChild(_c2x);_c2r.appendChild(_c2ok);_c2b.appendChild(_c2r);_c2.appendChild(_c2b);_c2.appendChild(h('div',{}));document.getElementById('av').appendChild(_c2);
+          });
+          _c1r.appendChild(_c1x);_c1r.appendChild(_c1ok);_c1b.appendChild(_c1r);_c1.appendChild(_c1b);document.getElementById('av').appendChild(_c1);
+        });
+        _ar.appendChild(_db);
+        var _rb=h('button',{css:{background:'linear-gradient(135deg,'+RA_COL+','+RA_COL+'cc)',border:'none',color:'#0D0B23',fontFamily:CR,fontSize:'12px',fontWeight:'500',padding:'8px 16px',borderRadius:'8px',cursor:'pointer'}});
+        _rb.textContent='Resume →';
+        _rb.addEventListener('click',function(e){
+          e.stopPropagation();
+          S.ra.msgs=sess.msgs.slice();
+          if(S.user){S.user.ra=S.ra;saveUser(S.user);}
+          try{localStorage.setItem('aevora_ra',JSON.stringify(S.ra));}catch(ex){}
+          _showTab(1);
+        });
+        _ar.appendChild(_rb);_body2.appendChild(_ar);_card.appendChild(_body2);
+        _hrow.addEventListener('click',function(){_expanded=!_expanded;_body2.style.display=_expanded?'block':'none';_chv.style.transform=_expanded?'rotate(180deg)':'none';_card.style.borderColor=_expanded?RA_COL+'40':RA_COL+'18';});
+        _hist.appendChild(_card);
+      });
+    });
+  }
   return w;
 }
 
@@ -9809,7 +10804,24 @@ if(S.user&&S.user.prof)S.prof=S.user.prof;
 S.lang=getLang();
 // Android back button
 window.addEventListener('popstate',function(e){
-  var backMap={home:'home',modules:'home',journal:'home',self:'home',settings:'home',therapist:'home',future:'home',wisdom:'home',blueprint:'home',dreams:'home',innerchild:'home',timecapsule:'home',relationship:'home',parallellives:'home',esp1:'welcome',esp2:'esp1',onboarding:'welcome',login:'welcome',signup:'login'};
+  // Save therapist session when navigating away via phone back button
+  if(S.scr==='therapist'&&S.th&&S.th.msgs&&S.th.msgs.length>2){
+    if(!S.th.history)S.th.history=[];
+    var _fu=S.th.msgs.find(function(m){return m.r==='u';});
+    var _first3p=S.th.msgs.filter(function(m){return m.r==='u';}).slice(0,3);
+    var _combp=_first3p.map(function(m){return m.t;}).join(' ');
+    var _stopsp=/^(i|am|is|are|was|were|have|has|had|be|been|the|a|an|this|that|it|my|me|our|we|you|your|he|she|they|their|do|did|does|for|of|to|in|on|at|by|with|and|or|but|not|so|just|really|very|want|need|would|could|should|can|will|may|might|must|get|got|go|come|there|here|when|where|what|how|why|who|if|then|than|as|from|some|any|like|up|out|now|feel|im|ive|dont|cant|wont|its|also|even|much|more|most|only|about|still|after|before|never|always|every|because|already|again)$/i;
+    var _kwp=_combp.trim().split(/[\s,\.!?;:]+/).filter(function(w){return w.length>2&&!_stopsp.test(w);});
+    var _ws=_kwp.slice(0,3).join(' ')||(_fu?_fu.t.trim().split(/\s+/).slice(0,3).join(' '):'Session');
+    _ws=_ws.charAt(0).toUpperCase()+_ws.slice(1);
+    S.th.history.unshift({ts:Date.now(),msgs:S.th.msgs.slice(),preview:_fu?_fu.t.substring(0,120):'Session',title:_ws.charAt(0).toUpperCase()+_ws.slice(1)});
+    if(S.th.history.length>20)S.th.history.length=20;
+    if(S.user){S.user.th=S.th;saveUser(S.user);}try{localStorage.setItem('aevora_th',JSON.stringify(S.th));}catch(ex){}
+  }
+  // Stop any active voice session before navigating away
+  if(S.scr==='voicechat'){try{if(window._avStopVoice){window._avStopVoice();window._avStopVoice=null;}}catch(ex){}}
+  else{window.speechSynthesis.cancel();}
+  var backMap={home:'home',modules:'home',journal:'home',self:'home',settings:'home',therapist:'home',future:'home',wisdom:'home',blueprint:'home',dreams:'home',innerchild:'home',timecapsule:'home',relationship:'home',parallellives:'home',voicechat:'therapist',esp1:'welcome',esp2:'esp1',onboarding:'welcome',login:'welcome',signup:'login'};
   var prev=S._returnTo||backMap[S.scr]||'home';
   S._returnTo=null;S.scr=prev;
   var av=document.getElementById('av');if(!av)return;av.innerHTML='';
